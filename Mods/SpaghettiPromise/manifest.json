@@ -1,0 +1,21 @@
+{
+  "Version": "0.1.0",
+  "Title": "Spaghetti Promise",
+  "Description": "Flips the game's opening 'I will not build any spaghetti factories' contract into 'I will build only spaghetti factories.' A translations override — no gameplay changes.",
+  "Author": "Brian McGrath",
+  "SavedModVersionCompabilityRangeWithSelf": "*",
+  "GameVersionSupportRange": "*",
+  "AffectsSaveGames": false,
+  "DisablesAchievements": false,
+  "Conflicts": [],
+  "Assemblies": [
+    "SpaghettiPromise.dll"
+  ],
+  "Dependencies": [
+    {
+      "ModId": "steam:3542611357",
+      "ModTitle": "Shapez Shifter",
+      "Version": "1.0.*"
+    }
+  ]
+}
