@@ -30,6 +30,8 @@ The build locates the game and Shifter via three environment variables:
 
 Launch Shapez 2 with the `--set-modding-env-vars` flag (via Steam's "Set Launch Options" or a shortcut) once. The game writes the three variables to your user environment. Restart Rider / Visual Studio afterward so it picks up the new values.
 
+> *Source:* this flag is documented in the official [shapez2-mod-samples README](https://github.com/tobspr-games/shapez2-mod-samples#readme) — *"On Windows, these can be set automatically by the game by running the game with the command line argument `--set-modding-env-vars`."*
+
 ### Manual setup
 
 **Windows (PowerShell, persistent):**
