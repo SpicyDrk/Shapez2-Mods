@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Plain console "smoke check" app. Bypasses xunit/VSTest entirely. The
+      .NET 10 SDK has unresolved VSTest assembly-loading issues
+      (Microsoft.TestPlatform.CoreUtilities 15.0.0.0) that sabotage the usual
+      xunit path. A console app with exit codes is dead-simple and proves
+      exactly what we need: manifest exists, parses, and has the right shape.
+
+      Run via: dotnet run project Tests/HelloWorld.Tests/
+    -->
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+
+    <!-- Not a Shapez mod: skip the env-var build-gate check and default output. -->
+    <IsShapezMod>false</IsShapezMod>
+
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

@@ -17,6 +17,21 @@
     <IsShapezMod>true</IsShapezMod>
   </PropertyGroup>
 
+  <!--
+    Default output convention matching the Shapez 2 samples:
+    $(SPZ2_PERSISTENT)/mods/<ModName>/<ModName>.dll
+
+    Applied here (in targets, not props) so the per-project <IsShapezMod>
+    opt-out from each .csproj has already been read. Test projects and
+    tooling can set <IsShapezMod>false</IsShapezMod> to keep their output
+    under bin/ as normal.
+  -->
+  <PropertyGroup Condition="'$(IsShapezMod)' == 'true' AND '$(ShapezPersistent)' != ''">
+    <OutputPath>$(ShapezPersistent)\mods\$(MSBuildProjectName)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
   <Target Name="EnsureShapezEnvVars"
           BeforeTargets="_CheckForInvalidConfigurationAndPlatform"
           Condition="'$(IsShapezMod)' == 'true'">

@@ -44,16 +44,9 @@
   </PropertyGroup>
 
   <!--
-    Default output convention matching the Shapez 2 samples:
-    $(SPZ2_PERSISTENT)/mods/<ModName>/<ModName>.dll
-
-    Only set when the env var is present so non-mod scratch projects
-    (if any ever get added) aren't forced into the mods directory.
+    OutputPath is applied in Directory.Build.targets (not here) so that the
+    per-project <IsShapezMod> opt-out has already been read by the time we
+    decide whether to redirect output into $(SPZ2_PERSISTENT)/mods/.
   -->
-  <PropertyGroup Condition="'$(ShapezPersistent)' != '' AND '$(IsShapezMod)' != 'false'">
-    <OutputPath>$(ShapezPersistent)\mods\$(MSBuildProjectName)\</OutputPath>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
-  </PropertyGroup>
 
 </Project>
