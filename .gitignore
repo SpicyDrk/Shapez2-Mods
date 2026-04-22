@@ -3,3 +3,66 @@
 
 # Windows: Claude Code bash redirect creates literal NUL files
 NUL
+
+# Claude Code local per-developer settings
+.claude/settings.local.json
+
+# ────────────────────────────────────────────────────────────────
+# .NET build output
+# ────────────────────────────────────────────────────────────────
+[Bb]in/
+[Oo]bj/
+_UpgradeReport_Files/
+[Pp]ackages/
+.nuget/
+artifacts/
+
+# ────────────────────────────────────────────────────────────────
+# Visual Studio
+# ────────────────────────────────────────────────────────────────
+.vs/
+*.suo
+*.user
+*.userprefs
+*.sln.ide
+
+# ────────────────────────────────────────────────────────────────
+# JetBrains Rider / IntelliJ Platform
+# ────────────────────────────────────────────────────────────────
+# User-specific bits inside .idea/ (keep the rest of .idea/ tracked so
+# Rider project settings are shared — this mirrors the official
+# shapez2-mod-samples .gitignore).
+**/.idea/**/workspace.xml
+**/.idea/**/tasks.xml
+**/.idea/shelf/*
+**/.idea/dictionaries
+**/.idea/httpRequests/
+
+# Sensitive / high-churn
+**/.idea/**/dataSources/
+**/.idea/**/dataSources.ids
+**/.idea/**/dataSources.xml
+**/.idea/**/dataSources.local.xml
+**/.idea/**/sqlDataSources.xml
+**/.idea/**/dynamic.xml
+
+# Rider auto-generated
+**/.idea/**/*.iml
+**/.idea/**/contentModel.xml
+**/.idea/**/modules.xml
+
+# ReSharper
+_ReSharper.*
+
+# ────────────────────────────────────────────────────────────────
+# Shapez 2 modding tooling
+# ────────────────────────────────────────────────────────────────
+krafs.log
+**/logs
+
+# ────────────────────────────────────────────────────────────────
+# OS cruft
+# ────────────────────────────────────────────────────────────────
+Thumbs.db
+Desktop.ini
+.DS_Store
