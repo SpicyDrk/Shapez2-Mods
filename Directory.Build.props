@@ -44,9 +44,22 @@
   </PropertyGroup>
 
   <!--
-    OutputPath is applied in Directory.Build.targets (not here) so that the
-    per-project <IsShapezMod> opt-out has already been read by the time we
-    decide whether to redirect output into $(SPZ2_PERSISTENT)/mods/.
+    Output-root helper for mod projects. Each mod csproj opts into the
+    "land in the game's mods/ directory" convention by setting:
+
+      <PropertyGroup>
+        <OutputPath>$(ShapezModOutputRoot)$(MSBuildProjectName)\</OutputPath>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+      </PropertyGroup>
+
+    We don't set OutputPath centrally because MSBuild's evaluation order
+    bakes the SDK's bin\Debug\... path early; a per-csproj override is both
+    more reliable and more explicit than a conditional-in-props scheme.
+    Test projects and tooling simply don't set OutputPath and use the
+    default bin\... location.
   -->
+  <PropertyGroup Condition="'$(ShapezPersistent)' != ''">
+    <ShapezModOutputRoot>$(ShapezPersistent)\mods\</ShapezModOutputRoot>
+  </PropertyGroup>
 
 </Project>

@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Minimal Shapez 2 mod. Proves the workspace pipeline compiles end-to-end
+    against Shifter and lands a .dll in $(SPZ2_PERSISTENT)/mods/HelloWorld/.
+    Does NOT invoke any Shifter API surface beyond implementing IMod so it
+    stays independent of the evolving modding API.
+
+    TargetFramework / LangVersion / Nullable come from the workspace-level
+    Directory.Build.props. The OutputPath pattern is opted into here — mods
+    land under the game's persistent mods/ directory.
+  -->
+
+  <PropertyGroup>
+    <OutputPath>$(ShapezModOutputRoot)$(MSBuildProjectName)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="ShapezShifter">
+      <HintPath>$(SPZ2_SHIFTER)\ShapezShifter.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Modding">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Modding.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Core">
+      <HintPath>$(SPZ2_PATH)\Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="JetBrains.Annotations">
+      <HintPath>$(SPZ2_PATH)\JetBrains.Annotations.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="manifest.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

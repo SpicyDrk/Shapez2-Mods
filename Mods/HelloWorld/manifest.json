@@ -1,0 +1,21 @@
+{
+  "Version": "0.1.0",
+  "Title": "Hello World",
+  "Description": "Minimal Shapez 2 mod proving the Shapez2-Mods workspace build pipeline. Does nothing observable in-game.",
+  "Author": "Brian McGrath",
+  "SavedModVersionCompabilityRangeWithSelf": "*",
+  "GameVersionSupportRange": "*",
+  "AffectsSaveGames": false,
+  "DisablesAchievements": false,
+  "Conflicts": [],
+  "Assemblies": [
+    "HelloWorld.dll"
+  ],
+  "Dependencies": [
+    {
+      "ModId": "steam:3542611357",
+      "ModTitle": "Shapez Shifter",
+      "Version": "1.0.*"
+    }
+  ]
+}
