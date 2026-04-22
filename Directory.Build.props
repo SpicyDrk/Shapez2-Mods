@@ -1,0 +1,59 @@
+<Project>
+
+  <!--
+    Shared MSBuild configuration for every mod in this workspace.
+
+    Mod .csproj files under Mods/<ModName>/ inherit these settings automatically
+    via MSBuild's directory-walk convention. Keep this file tight; per-mod
+    specifics (assembly references, publicize lists, manifest copy targets)
+    belong in each mod's .csproj.
+
+    The companion Directory.Build.targets verifies required environment
+    variables and emits a clear error when they are missing.
+  -->
+
+  <PropertyGroup>
+    <!-- Pinned to match the official tobspr-games/shapez2-mod-samples repo. -->
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+
+    <!-- Keep mod builds quiet-but-honest. Individual mods can override. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+
+    <!-- Don't generate binding-redirect metadata in netstandard. -->
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+
+  <!--
+    Re-export the three required environment variables as MSBuild properties
+    so per-mod .csproj files can reference them as $(ShapezPath) etc. instead
+    of peppering $(SPZ2_PATH) macros everywhere.
+
+    If any of these resolve empty, Directory.Build.targets fails the build
+    with an actionable message before MSBuild tries (and fails) to resolve
+    reference assemblies.
+  -->
+  <PropertyGroup>
+    <ShapezPath>$(SPZ2_PATH)</ShapezPath>
+    <ShapezPersistent>$(SPZ2_PERSISTENT)</ShapezPersistent>
+    <ShapezShifter>$(SPZ2_SHIFTER)</ShapezShifter>
+  </PropertyGroup>
+
+  <!--
+    Default output convention matching the Shapez 2 samples:
+    $(SPZ2_PERSISTENT)/mods/<ModName>/<ModName>.dll
+
+    Only set when the env var is present so non-mod scratch projects
+    (if any ever get added) aren't forced into the mods directory.
+  -->
+  <PropertyGroup Condition="'$(ShapezPersistent)' != '' AND '$(IsShapezMod)' != 'false'">
+    <OutputPath>$(ShapezPersistent)\mods\$(MSBuildProjectName)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+</Project>

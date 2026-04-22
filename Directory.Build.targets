@@ -1,0 +1,38 @@
+<Project>
+
+  <!--
+    Verify the three environment variables required to build any Shapez 2 mod
+    are set before MSBuild tries to resolve references. Without this, a missing
+    SPZ2_PATH / SPZ2_PERSISTENT / SPZ2_SHIFTER surfaces as a cryptic
+    "metadata file X could not be found" error deep in the build pipeline.
+
+    This target only fires when a .csproj opts in via $(IsShapezMod) = true
+    (or leaves it unset, which defaults to true for any project that inherits
+    these files). Set <IsShapezMod>false</IsShapezMod> in a .csproj to skip
+    the check — useful for eventual test projects, tooling, or scratch code
+    that doesn't link against the game.
+  -->
+
+  <PropertyGroup Condition="'$(IsShapezMod)' == ''">
+    <IsShapezMod>true</IsShapezMod>
+  </PropertyGroup>
+
+  <Target Name="EnsureShapezEnvVars"
+          BeforeTargets="_CheckForInvalidConfigurationAndPlatform"
+          Condition="'$(IsShapezMod)' == 'true'">
+
+    <Error Condition="'$(SPZ2_PATH)' == ''"
+           Code="SPZ2001"
+           Text="SPZ2_PATH is not set. This environment variable must point to your Shapez 2 install's Managed/ directory (the folder containing SPZGameAssembly.dll). On Windows you can auto-configure all three SPZ2_* variables by launching Shapez 2 with the --set-modding-env-vars flag. See README.md for details." />
+
+    <Error Condition="'$(SPZ2_PERSISTENT)' == ''"
+           Code="SPZ2002"
+           Text="SPZ2_PERSISTENT is not set. This environment variable must point to Shapez 2's persistentDataPath — built DLLs land under $SPZ2_PERSISTENT/mods/&lt;ModName&gt;/. On Windows: launch Shapez 2 with --set-modding-env-vars. See README.md for details." />
+
+    <Error Condition="'$(SPZ2_SHIFTER)' == ''"
+           Code="SPZ2003"
+           Text="SPZ2_SHIFTER is not set. This environment variable must point to your ShapezShifter install (either a checkout of tobspr-games/shapez2-shifter or the workshop download). See README.md for details." />
+
+  </Target>
+
+</Project>
