@@ -123,9 +123,10 @@ If you don't see it in the list:
 
 Copy the bundled `HelloWorld` as a starting point:
 
-1. **Copy the folder:**
+1. **Copy the folder** (and strip any stale build output that tagged along):
    ```sh
    cp -r Mods/HelloWorld Mods/MyMod
+   rm -rf Mods/MyMod/bin Mods/MyMod/obj
    ```
 
 2. **Rename the `.csproj`:**
