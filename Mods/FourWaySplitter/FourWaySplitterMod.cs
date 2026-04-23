@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Core.Localization;
 using Game.Core.Coordinates;
 using Game.Core.Modding;
+using Game.Core.Research;
 using JetBrains.Annotations;
 using ShapezShifter.Flow;
 using ShapezShifter.Flow.Atomic;
@@ -42,12 +43,16 @@ namespace FourWaySplitter
     ///     CONSTRAINTS §5b MUST NOT: no research-gate / side-upgrade unlock.
     ///   </item>
     ///   <item>
-    ///     <c>WithCustomModules</c> (not <c>WithAtomicShapeProcessingModules</c>)
-    ///     because our 4-output simulation bypasses the 1In2Out framework —
-    ///     attaching the shape-processing modules would produce incorrect HUD
-    ///     stats. <c>WithoutPrediction</c> is the MVP choice — a proper 4-out
-    ///     prediction simulation is deferred (see
-    ///     <see cref="Operation1In4OutPredictionFactoryBuilder"/>).
+    ///     Originally we called <c>WithCustomModules(...)</c> to avoid HUD
+    ///     shape-processing stats driven by the 1In2Out prediction framework
+    ///     (which doesn't cover our 4-output case). That produced a
+    ///     NullReferenceException during mod-load inside Shifter's
+    ///     <c>BuildExtenders</c> — see UAT-P02.md (2026-04-23) for the
+    ///     diagnosis. Aligned with
+    ///     <c>WithAtomicShapeProcessingModules(CutterSpeed, 2.0f)</c> which
+    ///     mirrors DiagonalCutter's chain verbatim; the HUD module will
+    ///     display a single-speed stat that reflects our simulation's
+    ///     ProcessingDelay reasonably well for v1.
     ///   </item>
     /// </list>
     /// </summary>
@@ -122,7 +127,7 @@ namespace FourWaySplitter
                 // not a compile-time check).
                 .InToolbar(ToolbarElementLocator.Root().ChildAt(0).ChildAt(2).ChildAt(^1).InsertAfter())
                 .WithSimulation(new FourWaySplitterFactoryBuilder(), logger)
-                .WithCustomModules(new FourWaySplitterBuildingModules())
+                .WithAtomicShapeProcessingModules(BuiltinResearchSpeed.CutterSpeed, 2.0f)
                 .WithoutPrediction()
                 .Build();
         }
