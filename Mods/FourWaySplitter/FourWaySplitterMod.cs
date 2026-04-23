@@ -32,15 +32,6 @@ namespace FourWaySplitter
     ///     (<c>TileVector(0, 0, 1)</c>), which requires a direct <see cref="BuildingConnectorData"/>
     ///     construction. See STATE.md P02 API findings (2026-04-22) for the
     ///     upstream source audit that motivated this approach.
-    ///     <para>
-    ///     TEMPORARILY DISABLED in Plan-P02-004 — the hand-crafted path is the
-    ///     prime suspect for the NRE crash during mod load (see UAT-P02.md).
-    ///     The ctor below now uses the minimal <c>SingleTile()</c> smoke-test
-    ///     layout (1-input south, 1-output north, both level 0) as a diagnostic.
-    ///     If that loads in-game, Plan-005 restores the 4-output multi-level
-    ///     layout via a different Shifter API path. The <c>BuildFourWayConnectorData</c>
-    ///     helper is kept in place for Plan-005 to reference.
-    ///     </para>
     ///   </item>
     ///   <item>
     ///     <see cref="ShapezShifter.Flow.Atomic.IDefinedBuildingExtender"/> exposes
@@ -104,18 +95,7 @@ namespace FourWaySplitter
                 .WithPreferredPlacement(DefaultPreferredPlacementMode.LinePerpendicular)
                 .WithDefaultStructureOverview();
 
-            // SMOKE-TEST (PLAN-P02-004 diagnostic): functionally wrong — 1 input
-            // south, 1 output north, both level 0 — but proves whether our
-            // hand-crafted BuildingConnectorData is the NRE root cause. If this
-            // loads in-game, Plan-005 designs a correct multi-level connector
-            // approach. If it still crashes, Plan-005 tries WithPrediction
-            // instead (hypothesis 2). See .oes/uat/UAT-P02.md for the full
-            // diagnosis. The original BuildFourWayConnectorData() helper is
-            // preserved below for Plan-005 restoration.
-            IBuildingConnectorData connectorData = BuildingConnectors.SingleTile()
-                .AddShapeInput(ShapeConnectorConfig.DefaultInput())
-                .AddShapeOutput(ShapeConnectorConfig.DefaultOutput())
-                .Build();
+            IBuildingConnectorData connectorData = BuildFourWayConnectorData();
 
             // Static draw data: reuse DiagonalCutter's mesh for v1 (CONSTRAINTS
             // §5a PREFER reusing existing game meshes; §5b MUST NOT add custom
@@ -166,17 +146,7 @@ namespace FourWaySplitter
         /// <see cref="BuildingItemInput"/> / <see cref="BuildingItemOutput"/>
         /// records — exactly the shape <c>SingleTileBuildingConnectorDataBuilder</c>
         /// produces, just with explicit non-zero <c>Position_L</c> on the outputs.
-        /// <para>
-        /// TODO(PLAN-P02-005): This helper is the prime suspect for the NRE
-        /// crash during mod load. Plan-P02-004 temporarily swapped its call
-        /// site with <c>BuildingConnectors.SingleTile()</c> as a diagnostic.
-        /// If the smoke test loads, restoring multi-level connectors requires
-        /// a different Shifter API path — likely studying BiggerPlatforms
-        /// or consulting the Shifter maintainer. The helper is preserved
-        /// here for future reference.
-        /// </para>
         /// </summary>
-        [UsedImplicitly]
         private static IBuildingConnectorData BuildFourWayConnectorData()
         {
             // Level-0 (lower platform) input on the south face. Shape items
