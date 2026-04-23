@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Core.Localization;
 using Game.Core.Coordinates;
 using Game.Core.Modding;
+using Game.Core.Rendering;
 using Game.Core.Research;
 using JetBrains.Annotations;
 using ShapezShifter.Flow;
@@ -18,12 +19,14 @@ namespace FourWaySplitter
     /// <summary>
     /// FourWaySplitter — a 1×1 / 2-level Shapez 2 building that splits the
     /// four quadrants of an incoming shape to four cardinal outputs on the
-    /// upper platform level. Ships without a research gate, reuses
-    /// DiagonalCutter's visual mesh as a v1 placeholder (CONSTRAINTS §5a/§5b —
-    /// no custom FBX).
+    /// upper platform level. Ships without a research gate. The v1 building
+    /// has no visible mesh — all LOD slots are <see cref="LODEmptyMesh"/>
+    /// placeholders (CONSTRAINTS §5b MUST NOT bundle custom FBX in v1; a real
+    /// mesh is ROADMAP R7 / P03 polish). Toolbar icon + connector arrows still
+    /// render; only the in-world building body is invisible.
     ///
     /// Registration chain mirrors <c>DiagonalCuttersMod</c> from the official
-    /// tobspr samples. Three deliberate deviations from DiagonalCutter:
+    /// tobspr samples. Five deliberate deviations from DiagonalCutter:
     /// <list type="number">
     ///   <item>
     ///     Connector data is hand-crafted (not <c>BuildingConnectors.SingleTile()</c>)
@@ -68,6 +71,19 @@ namespace FourWaySplitter
     ///     prediction framework caps at 1In1Out / 1In2Out. See UAT-P02.md
     ///     for the full diagnosis.
     ///   </item>
+    ///   <item>
+    ///     Static draw data is a self-contained <see cref="LODEmptyMesh"/>
+    ///     placeholder in every LOD slot (<see cref="CreateDrawData"/>), not
+    ///     a copy of another building's mesh. The original Plan-002 approach
+    ///     — <c>WithCopiedStaticDrawData(new BuildingDefinitionId("DiagonalCutter"))</c>
+    ///     — threw <c>KeyNotFoundException: "DiagonalCutter"</c> at
+    ///     <c>MainMenuOrchestrator</c> ctor → <c>GameBuildings.GetDefinition</c>.
+    ///     "DiagonalCutter" is the sample mod's id, not a built-in game
+    ///     building. See UAT-P02.md (2026-04-23) for the crash trace; a real
+    ///     mesh is deferred to ROADMAP R7 / P03 polish. Placeholder is
+    ///     permitted under CONSTRAINTS §5b (MUST NOT bundle custom FBX in v1)
+    ///     — <c>LODEmptyMesh</c> is not an FBX and adds no art asset.
+    ///   </item>
     /// </list>
     /// </summary>
     [UsedImplicitly]
@@ -111,17 +127,19 @@ namespace FourWaySplitter
 
             IBuildingConnectorData connectorData = BuildFourWayConnectorData();
 
-            // Static draw data: reuse DiagonalCutter's mesh for v1 (CONSTRAINTS
-            // §5a PREFER reusing existing game meshes; §5b MUST NOT add custom
-            // FBX assets in v1). DiagonalCutter's visible model is good enough
-            // as a placeholder — a real sprite / mesh is P03 / a follow-up story.
+            // Static draw data: self-contained LODEmptyMesh placeholders in
+            // every LOD slot (see CreateDrawData). v1 building has no visible
+            // mesh — CONSTRAINTS §5b MUST NOT bundle custom FBX in v1, and the
+            // original WithCopiedStaticDrawData("DiagonalCutter") approach
+            // crashed at main-menu init with KeyNotFoundException (the sample
+            // mod's id isn't a built-in game id). See deviation #5 in the
+            // class-level docstring and UAT-P02.md (2026-04-23).
+            // TODO(P03): bundle a real mesh — see ROADMAP R7.
             IBuildingBuilder fourWaySplitterBuilder = Building.Create(definitionId)
                 .WithConnectorData(connectorData)
                 .DynamicallyRendering<FourWaySplitterSimulationRenderer, FourWaySplitterSimulation,
                     IFourWaySplitterDrawData>(new FourWaySplitterDrawData())
-#pragma warning disable CS0618 // 'Do not hardcode building ids' — intentional for cross-mod mesh reuse (CONSTRAINTS §5a: PREFER reusing existing game meshes). No public non-obsolete alternative exists for referencing another building's static draw data by id.
-                .WithCopiedStaticDrawData(new BuildingDefinitionId("DiagonalCutter"))
-#pragma warning restore CS0618
+                .WithStaticDrawData(CreateDrawData())
                 .WithoutSound()
                 .WithoutSimulationConfiguration()
                 .WithEfficiencyData(new BuildingEfficiencyData(2.0f, 1));
@@ -154,6 +172,60 @@ namespace FourWaySplitter
                 // Operation1In4OutPredictionFactoryBuilder.cs and UAT-P02.md.
                 .WithPrediction(new Operation1In4OutPredictionFactoryBuilder(), logger)
                 .Build();
+        }
+
+        /// <summary>
+        /// Constructs a fully-empty <see cref="BuildingDrawData"/> whose LOD
+        /// slots are all <see cref="LODEmptyMesh"/> instances. v1 building has
+        /// no visible in-world mesh — CONSTRAINTS §5b MUST NOT bundle custom
+        /// FBX in v1, and the original plan to reuse DiagonalCutter's mesh
+        /// via <c>WithCopiedStaticDrawData</c> crashed at main-menu init with
+        /// <c>KeyNotFoundException</c> ("DiagonalCutter" is the sample mod's
+        /// id, not a built-in). The toolbar icon and placement-time connector
+        /// arrows still render; simulation runs normally. See class-level
+        /// deviation #5 + UAT-P02.md (2026-04-23).
+        /// <para>
+        /// Positional args match the <c>BuildingDrawData</c> ctor signature
+        /// <c>(bool, ILODMesh[], ILODMesh, ILODMesh, IMeshReference, ILODMesh,
+        /// CollisionBox[], IBuildingCustomDrawData, bool, IMeshReference,
+        /// bool)</c>. The Shifter/Game.Core.Rendering reference assembly on
+        /// disk does not expose ctor parameter names to reflection, so named
+        /// arguments beyond <c>renderVoidBelow</c> are not available. Slot
+        /// roles inferred from the DiagonalCutter sample pattern: the
+        /// <c>ILODMesh[]</c> is the primary LOD ladder, the three solo
+        /// <c>ILODMesh</c> slots correspond to shadow / special-render / support
+        /// passes, the <c>IMeshReference</c> slots hold close-LOD references
+        /// (nullable), the <c>CollisionBox[]</c> is an empty array (no
+        /// collision volume needed — placement is tile-based), and the trailing
+        /// booleans default to <c>false</c>.
+        /// </para>
+        /// </summary>
+        private static BuildingDrawData CreateDrawData()
+        {
+            // Shared single instance is fine — LODEmptyMesh has no per-slot
+            // mutable state (it's the no-op mesh type the game uses for
+            // buildings that render nothing at a given LOD tier).
+            var empty = new LODEmptyMesh();
+            ILODMesh[] lodLadder = { empty, empty, empty };
+
+            // Null-forgiving (`!`) on the nullable reference-type slots: the
+            // reference assembly declares these params as non-nullable but the
+            // ctor body accepts null (verified via compile-probe — see class
+            // docstring deviation #5). Using `!` keeps warnings at zero without
+            // disabling nullable analysis for the whole method.
+            return new BuildingDrawData(
+                false,                                  // renderVoidBelow
+                lodLadder,                              // ILODMesh[] — primary LOD ladder
+                empty,                                  // ILODMesh  — shadow pass
+                empty,                                  // ILODMesh  — special pass
+                ((IMeshReference)null!),                // IMeshReference — close-LOD ref (runtime-nullable)
+                empty,                                  // ILODMesh  — support pass
+                Array.Empty<CollisionBox>(),            // CollisionBox[] — no tile-based collision volume needed
+                ((IBuildingCustomDrawData)null!),       // IBuildingCustomDrawData — no custom draw payload
+                false,                                  // bool — trailing flag (default per sample)
+                ((IMeshReference)null!),                // IMeshReference — secondary ref (runtime-nullable)
+                false                                   // bool — trailing flag (default per sample)
+            );
         }
 
         /// <summary>
