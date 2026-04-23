@@ -8,6 +8,8 @@ using ShapezShifter.Flow;
 using ShapezShifter.Flow.Atomic;
 using ShapezShifter.Flow.Research;
 using ShapezShifter.Flow.Toolbar;
+using ShapezShifter.Kit;
+using ShapezShifter.Textures;
 using ILogger = Core.Logging.ILogger;
 
 namespace FourWaySplitter
@@ -68,10 +70,22 @@ namespace FourWaySplitter
             string titleId = "building-variant.four-way-splitter.title";
             string descriptionId = "building-variant.four-way-splitter.description";
 
+            // Placeholder icon loaded from Resources/ at runtime. CONSTRAINTS §5b
+            // permits placeholder PNGs in v1 (no custom FBX, but a simple icon is
+            // fine). Mirrors the DiagonalCutter sample's pattern for wiring an
+            // external texture into the building group. Using `FileTextureLoader`
+            // avoids passing a null Sprite into Shifter's AtomicBuildingExtender —
+            // downstream consumers (e.g. ToolbarRewirer.BuildToolbarExtenderFunc)
+            // dereference `group.Icon` and NRE on null. See UAT-P02.md.
+            ModFolderLocator modResourcesLocator =
+                ModDirectoryLocator.CreateLocator<FourWaySplitterMod>().SubLocator("Resources");
+
+            string iconPath = modResourcesLocator.SubPath("FourWaySplitter_Icon.png");
+
             IBuildingGroupBuilder fourWaySplitterGroup = BuildingGroup.Create(groupId)
                 .WithTitle(titleId.T())
                 .WithDescription(descriptionId.T())
-                .WithIcon(icon: null)
+                .WithIcon(FileTextureLoader.LoadTextureAsSprite(iconPath, out _))
                 .AsNonTransportableBuilding()
                 .WithPreferredPlacement(DefaultPreferredPlacementMode.LinePerpendicular)
                 .WithDefaultStructureOverview();
