@@ -54,6 +54,20 @@ namespace FourWaySplitter
     ///     display a single-speed stat that reflects our simulation's
     ///     ProcessingDelay reasonably well for v1.
     ///   </item>
+    ///   <item>
+    ///     Prediction is a deliberately-minimal single-quadrant stub
+    ///     (<see cref="Operation1In4OutPredictionFactoryBuilder"/>) rather
+    ///     than a correct 4-output prediction. The installed Shifter workshop
+    ///     version (v1.0.0) has an unpatched NRE at
+    ///     <c>AtomicBuildingExtender.cs:158</c> — <c>LazyPredictionExtender</c>
+    ///     is dereferenced without a null-check. Fixed upstream in Shifter
+    ///     commit <c>54d5e38</c> (2026-04-12) but not yet shipped to the
+    ///     Steam Workshop. <c>WithoutPrediction()</c> leaves the field null
+    ///     and triggers that NRE; supplying ANY non-null prediction builder
+    ///     sidesteps it. Full 4-output prediction is deferred — the game's
+    ///     prediction framework caps at 1In1Out / 1In2Out. See UAT-P02.md
+    ///     for the full diagnosis.
+    ///   </item>
     /// </list>
     /// </summary>
     [UsedImplicitly]
@@ -128,7 +142,17 @@ namespace FourWaySplitter
                 .InToolbar(ToolbarElementLocator.Root().ChildAt(0).ChildAt(2).ChildAt(^1).InsertAfter())
                 .WithSimulation(new FourWaySplitterFactoryBuilder(), logger)
                 .WithAtomicShapeProcessingModules(BuiltinResearchSpeed.CutterSpeed, 2.0f)
-                .WithoutPrediction()
+                // Prediction is intentionally a single-quadrant (north-projection)
+                // stub — not a correct 4-output prediction. The installed Shifter
+                // workshop version (v1.0.0) has an unpatched NRE at
+                // AtomicBuildingExtender.cs:158 where LazyPredictionExtender is
+                // dereferenced without a null-check (fixed upstream in commit
+                // 54d5e38 but not yet shipped to Steam Workshop). Calling
+                // WithoutPrediction() leaves the field null and triggers that NRE
+                // during mod load. Supplying any non-null IBuildingPredictionFactoryBuilder
+                // sidesteps the bug. Full 1In4Out prediction is deferred — see
+                // Operation1In4OutPredictionFactoryBuilder.cs and UAT-P02.md.
+                .WithPrediction(new Operation1In4OutPredictionFactoryBuilder(), logger)
                 .Build();
         }
 
