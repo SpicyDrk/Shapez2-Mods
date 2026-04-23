@@ -1,15 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Phase P01 scaffolding. An empty IMod stub just so Shifter recognizes
-    the mod folder at load time. Real building/simulation/rendering wiring
-    lands in P02 — at which point the <Reference> list will expand to
-    mirror the DiagonalCutter sample (Map.Model, Simulation, Rendering,
-    Coordinates, Orchestration, Unity modules, Krafs.Publicizer, …).
+    Phase P02.1 (exploratory). References expanded to match the official
+    DiagonalCutter sample's csproj so we have access to the full shape /
+    simulation / rendering / toolbar API surface. Publicizer added to expose
+    internal game types (same pattern as DiagonalCutter).
 
-    For P01 the three DLLs below are the minimum: ShapezShifter for Flow
-    types we'll need in P02, Game.Core.Modding for IMod, and Core for
-    ILogger. JetBrains.Annotations for [UsedImplicitly].
+    Inherits TargetFramework / LangVersion / Nullable from the workspace
+    Directory.Build.props. OutputPath opted in below so the DLL lands in the
+    game's mods/ directory.
   -->
 
   <PropertyGroup>
@@ -19,22 +18,122 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Shifter (modding framework) -->
     <Reference Include="ShapezShifter">
       <HintPath>$(SPZ2_SHIFTER)\ShapezShifter.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Game.Core.Modding">
-      <HintPath>$(SPZ2_PATH)\Game.Core.Modding.dll</HintPath>
+
+    <!-- Game core -->
+    <Reference Include="SPZGameAssembly">
+      <HintPath>$(SPZ2_PATH)\SPZGameAssembly.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Core">
       <HintPath>$(SPZ2_PATH)\Core.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="JetBrains.Annotations">
-      <HintPath>$(SPZ2_PATH)\JetBrains.Annotations.dll</HintPath>
+    <Reference Include="Core.Localization">
+      <HintPath>$(SPZ2_PATH)\Core.Localization.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Game.Core">
+      <HintPath>$(SPZ2_PATH)\Game.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Modding">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Modding.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <!-- Map / Layout / Coordinates -->
+    <Reference Include="Game.Core.Coordinates">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Coordinates.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Model">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Model.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Layout.Model">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Layout.Model.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Simulation">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Simulation.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <!-- Simulation + Rendering -->
+    <Reference Include="Game.Core.Simulation">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Simulation.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Rendering">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Rendering.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <!-- Gameplay / Content / Interaction -->
+    <Reference Include="Game.Content.Features">
+      <HintPath>$(SPZ2_PATH)\Game.Content.Features.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Interaction">
+      <HintPath>$(SPZ2_PATH)\Game.Interaction.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Orchestration">
+      <HintPath>$(SPZ2_PATH)\Game.Orchestration.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <!-- Unity runtime (for Sprite, Mesh, AssetBundle, math types) -->
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(SPZ2_PATH)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule">
+      <HintPath>$(SPZ2_PATH)\UnityEngine.AssetBundleModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>$(SPZ2_PATH)\UnityEngine.ImageConversionModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Mathematics">
+      <HintPath>$(SPZ2_PATH)\Unity.Mathematics.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <!-- Note: we deliberately do NOT reference JetBrains.Annotations.dll here.
+         UnityEngine.CoreModule embeds the same namespace types, and
+         referencing both yields CS0433 on [UsedImplicitly] et al. We rely on
+         Unity's embedded version. -->
+  </ItemGroup>
+
+  <!-- Krafs.Publicizer: expose internal game types so mod code can use them.
+       Whitelisted to the game assemblies we'll actually consume privates from
+       (DiagonalCutter uses PublicizeAll=true, but that tries to process
+       netstandard.dll on our setup and hits file locks). Add more Publicize
+       entries if we hit 'internal' access errors at compile time. -->
+  <PropertyGroup>
+    <PublicizerClearCacheOnClean>true</PublicizerClearCacheOnClean>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Krafs.Publicizer" Version="2.3.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+
+    <Publicize Include="SPZGameAssembly" />
+    <Publicize Include="Game.Core.Simulation" />
+    <Publicize Include="Game.Core.Map.Simulation" />
+    <Publicize Include="Game.Core.Rendering" />
+    <Publicize Include="Game.Core.Map.Model" />
+    <Publicize Include="Game.Orchestration" />
+    <Publicize Include="Game.Content.Features" />
   </ItemGroup>
 
   <ItemGroup>
