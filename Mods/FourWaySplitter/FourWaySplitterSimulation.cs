@@ -14,38 +14,35 @@ namespace FourWaySplitter
     /// <see cref="Simulation{TState}"/>, <see cref="IItemSimulation"/>, and
     /// <see cref="IUpdatableSimulation"/> directly with
     /// <c>NumItemProviders = 4</c>. See STATE.md (2026-04-22) for the
-    /// decision trail. If <c>AtomicBuildings.Extend().WithSimulation(...)</c>
-    /// rejects this non-1In2Out shape, PLAN-P02-002 Task 5 will STOP rather
-    /// than force it.
+    /// decision trail.
     ///
-    /// Flow:
-    ///   1. Input lane's AcceptHook fires when an upstream belt hands us a
-    ///      ShapeItem — we run the split, cache the 4-way result, flag
-    ///      HasPendingResult, and consume the incoming item (item = null).
-    ///   2. On every Update tick, if we have a pending result AND all four
-    ///      output lanes <c>CanAcceptItem</c>, we emit one ShapeItem per
-    ///      cardinal and clear the pending flag.
+    /// Flow: the input lane's AcceptHook runs the split synchronously.
+    /// Before consuming the incoming item, it checks <c>CanAcceptItem</c>
+    /// on every non-empty output lane. If any output is full the hook
+    /// returns without mutating <c>item</c> — the belt system retries on
+    /// the next tick. If all outputs pass, the hook calls
+    /// <c>HandOverItem</c> on each and consumes the input (<c>item = null</c>).
+    /// No per-tick buffering, no HasPendingResult flag — the hook is
+    /// all-or-nothing per call.
+    ///
+    /// Why synchronous instead of buffered: the prior design cached the
+    /// split in state and emitted from Update() gated on
+    /// <c>HasPendingResult</c>. That flag stalled forever if
+    /// <c>CanAcceptItem</c> ever returned false for one tick, because the
+    /// input AcceptHook would then refuse every subsequent item. Moving
+    /// the gate onto the accept path removes the stuck-state edge.
     ///
     /// MVP scope: no delay / processing lane. The configuration's
     /// ProcessingDelay is still exposed for future expansion but is not
     /// wired into a DelayBeltLane here (CONSTRAINTS §5a: ship MVP first).
-    ///
-    /// Mirrors <c>DiagonalCutterSimulation</c>'s structure where possible
-    /// (ctor signature, Traverse / ClearContent / Update shape, lane
-    /// initialization order).
     /// </summary>
     public class FourWaySplitterSimulation : Simulation<FourWaySplitterSimulationState>, IItemSimulation, IUpdatableSimulation
     {
-        public FourWaySplitResult CurrentResult => State.CurrentResult;
-        public bool HasPendingResult => State.HasPendingResult;
-
         public readonly BeltLane InputLane;
         public readonly BeltLane NorthOutputLane;
         public readonly BeltLane EastOutputLane;
         public readonly BeltLane SouthOutputLane;
         public readonly BeltLane WestOutputLane;
-
-        private readonly IShapeRegistry _ShapeRegistry;
 
         /// <inheritdoc />
         public int NumItemReceivers => 1;
@@ -59,36 +56,17 @@ namespace FourWaySplitter
             IShapeRegistry shapeRegistry,
             ShapeOperationFourWaySplit fourWaySplit) : base(simulationState)
         {
-            _ShapeRegistry = shapeRegistry;
-
-            // Output lanes: 2-arg BeltLane (speed + state, no downstream
-            // receiver). Same idiom as DiagonalCutter's OutputLane.
             NorthOutputLane = new BeltLane(configuration.BeltSpeed, simulationState.NorthOutputLaneState);
             EastOutputLane = new BeltLane(configuration.BeltSpeed, simulationState.EastOutputLaneState);
             SouthOutputLane = new BeltLane(configuration.BeltSpeed, simulationState.SouthOutputLaneState);
             WestOutputLane = new BeltLane(configuration.BeltSpeed, simulationState.WestOutputLaneState);
 
-            // Input lane: 2-arg BeltLane (no downstream) — we consume
-            // items in-place via the AcceptHook. Setting item = null at
-            // end of the hook prevents forwarding.
             InputLane = new BeltLane(configuration.BeltSpeed, simulationState.InputLaneState);
-            InputLane.AcceptHook = (IItemReceiver _, ref IBeltItem item, ref Ticks _) =>
+            InputLane.AcceptHook = (IItemReceiver _, ref IBeltItem item, ref Ticks ticks) =>
             {
-                // Guard: only standard solid shapes. Per CONSTRAINTS §5b
-                // MUST: unsupported types have explicit handling. MVP choice
-                // for Task 3: if not a ShapeItem, pass-through (leave item
-                // as-is — upstream belt retains it). Reject vs. pass-through
-                // policy is formally decided in P03 (STATE.md parking lot).
+                // Non-shape items: pass-through (leave item, upstream belt keeps it).
+                // Formal policy for crystals/fluids/pins is deferred to P03.
                 if (item is not ShapeItem shapeItem)
-                {
-                    return;
-                }
-
-                // If we already have a pending split, don't accept another
-                // input — leave the item on the upstream belt by setting
-                // it back (the belt system will retry). We only accept
-                // when we're idle.
-                if (State.HasPendingResult)
                 {
                     return;
                 }
@@ -96,15 +74,28 @@ namespace FourWaySplitter
                 ShapeDefinition definition = shapeItem.Definition;
                 FourWaySplitResult result = fourWaySplit.Execute(definition);
 
-                State.CurrentResult = result;
-                State.HasPendingResult = true;
+                // Empty quadrants surface as a non-null ShapeCollapseResult
+                // with ResultsInEmptyShape=true (see ShapeLogic.Collapse).
+                // Null-check too for defense against default(FourWaySplitResult).
+                ShapeItem? northItem = result.North is { ResultsInEmptyShape: false } n ? shapeRegistry.GetItem(n.Shape) : null;
+                ShapeItem? eastItem  = result.East  is { ResultsInEmptyShape: false } e ? shapeRegistry.GetItem(e.Shape) : null;
+                ShapeItem? southItem = result.South is { ResultsInEmptyShape: false } s ? shapeRegistry.GetItem(s.Shape) : null;
+                ShapeItem? westItem  = result.West  is { ResultsInEmptyShape: false } w ? shapeRegistry.GetItem(w.Shape) : null;
 
-                // Consume the incoming item — we'll re-emit 4 items from
-                // Update when the outputs have capacity. `null!` suppresses
-                // CS8625: the AcceptHookDelegate's `ref IBeltItem` is
-                // non-nullable by annotation but the belt system explicitly
-                // supports null here as the "consume" signal (DiagonalCutter
-                // uses this same pattern in its OutputLane.AcceptHook).
+                // All-or-nothing gate: if any non-empty output is full, bail
+                // without consuming. Belt system retries on the next tick.
+                if (northItem != null && !NorthOutputLane.CanAcceptItem(northItem)) return;
+                if (eastItem  != null && !EastOutputLane.CanAcceptItem(eastItem))   return;
+                if (southItem != null && !SouthOutputLane.CanAcceptItem(southItem)) return;
+                if (westItem  != null && !WestOutputLane.CanAcceptItem(westItem))   return;
+
+                if (northItem != null) NorthOutputLane.HandOverItem(northItem, ticks);
+                if (eastItem  != null) EastOutputLane.HandOverItem(eastItem, ticks);
+                if (southItem != null) SouthOutputLane.HandOverItem(southItem, ticks);
+                if (westItem  != null) WestOutputLane.HandOverItem(westItem, ticks);
+
+                // Consume. `null!` suppresses CS8625 — the belt system
+                // explicitly supports null here as the "consume" signal.
                 item = null!;
             };
         }
@@ -151,75 +142,18 @@ namespace FourWaySplitter
         public void ClearContent()
         {
             TraverseLanes(ClearItemsItemLaneTraverser.Default);
-            State.HasPendingResult = false;
         }
 
         /// <inheritdoc />
         public void Update(Ticks startTicks, Ticks deltaTicks)
         {
-            // Update all lanes first — this moves existing items along.
+            // Output-to-input order matches DiagonalCutter — gives
+            // downstream lanes a chance to drain before upstream pushes.
             NorthOutputLane.Update(deltaTicks);
             EastOutputLane.Update(deltaTicks);
             SouthOutputLane.Update(deltaTicks);
             WestOutputLane.Update(deltaTicks);
             InputLane.Update(deltaTicks);
-
-            // If we have a pending split result and all 4 output lanes
-            // have capacity, emit one shape item per cardinal.
-            if (State.HasPendingResult)
-            {
-                TryEmitPendingResult(startTicks);
-            }
-        }
-
-        private void TryEmitPendingResult(Ticks startTicks)
-        {
-            ShapeItem northItem = _ShapeRegistry.GetItem(State.CurrentResult.North?.Shape ?? ShapeId.Invalid);
-            ShapeItem eastItem = _ShapeRegistry.GetItem(State.CurrentResult.East?.Shape ?? ShapeId.Invalid);
-            ShapeItem southItem = _ShapeRegistry.GetItem(State.CurrentResult.South?.Shape ?? ShapeId.Invalid);
-            ShapeItem westItem = _ShapeRegistry.GetItem(State.CurrentResult.West?.Shape ?? ShapeId.Invalid);
-
-            // Gate: all four outputs must either (a) have capacity for
-            // their non-empty item, or (b) be marked empty (null item -
-            // ResultsInEmptyShape — we skip emission for that lane).
-            // We check capacity only for the lanes that actually have an
-            // item to push; empty-quadrant lanes don't need room.
-            if (northItem != null && !NorthOutputLane.CanAcceptItem(northItem))
-            {
-                return;
-            }
-            if (eastItem != null && !EastOutputLane.CanAcceptItem(eastItem))
-            {
-                return;
-            }
-            if (southItem != null && !SouthOutputLane.CanAcceptItem(southItem))
-            {
-                return;
-            }
-            if (westItem != null && !WestOutputLane.CanAcceptItem(westItem))
-            {
-                return;
-            }
-
-            // All gates passed — emit the non-empty quadrants.
-            if (northItem != null)
-            {
-                NorthOutputLane.HandOverItem(northItem, startTicks);
-            }
-            if (eastItem != null)
-            {
-                EastOutputLane.HandOverItem(eastItem, startTicks);
-            }
-            if (southItem != null)
-            {
-                SouthOutputLane.HandOverItem(southItem, startTicks);
-            }
-            if (westItem != null)
-            {
-                WestOutputLane.HandOverItem(westItem, startTicks);
-            }
-
-            State.HasPendingResult = false;
         }
     }
 }
