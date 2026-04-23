@@ -1,0 +1,21 @@
+{
+  "Version": "0.1.0",
+  "Title": "Four-Way Splitter",
+  "Description": "A 1x1 / 2-level building. Shapes enter the south edge of level 1 and exit as four per-quadrant shapes from the cardinal edges of level 2 (TR->N, BR->E, BL->S, TL->W). Phase P01 scaffold; real behaviour lands in P02.",
+  "Author": "Brian McGrath",
+  "SavedModVersionCompabilityRangeWithSelf": "*",
+  "GameVersionSupportRange": "*",
+  "AffectsSaveGames": false,
+  "DisablesAchievements": false,
+  "Conflicts": [],
+  "Assemblies": [
+    "FourWaySplitter.dll"
+  ],
+  "Dependencies": [
+    {
+      "ModId": "steam:3542611357",
+      "ModTitle": "Shapez Shifter",
+      "Version": "1.0.*"
+    }
+  ]
+}

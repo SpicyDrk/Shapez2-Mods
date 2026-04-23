@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Phase P01 scaffolding. An empty IMod stub just so Shifter recognizes
+    the mod folder at load time. Real building/simulation/rendering wiring
+    lands in P02 — at which point the <Reference> list will expand to
+    mirror the DiagonalCutter sample (Map.Model, Simulation, Rendering,
+    Coordinates, Orchestration, Unity modules, Krafs.Publicizer, …).
+
+    For P01 the three DLLs below are the minimum: ShapezShifter for Flow
+    types we'll need in P02, Game.Core.Modding for IMod, and Core for
+    ILogger. JetBrains.Annotations for [UsedImplicitly].
+  -->
+
+  <PropertyGroup>
+    <OutputPath>$(ShapezModOutputRoot)$(MSBuildProjectName)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="ShapezShifter">
+      <HintPath>$(SPZ2_SHIFTER)\ShapezShifter.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Modding">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Modding.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Core">
+      <HintPath>$(SPZ2_PATH)\Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="JetBrains.Annotations">
+      <HintPath>$(SPZ2_PATH)\JetBrains.Annotations.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="manifest.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="translations.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
