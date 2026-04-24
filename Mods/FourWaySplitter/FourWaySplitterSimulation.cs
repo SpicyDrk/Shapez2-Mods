@@ -57,21 +57,60 @@ namespace FourWaySplitter
     /// wired into a DelayBeltLane here (CONSTRAINTS §5a: ship MVP first).
     ///
     /// <para>
-    /// <b>Unsupported item types (SC-09, PLAN-P03-001):</b> non-<see cref="ShapeItem"/>
-    /// inputs (crystals, fluids, pins, painted shapes) are rejected via
-    /// wedge-style backpressure. The item is stored on the terminal
-    /// ProcessingLane indefinitely; ProcessingLane fills up, InputLane
-    /// chain-forward blocks, InputLane fills, upstream belt's
-    /// HandOverItem fails CanAcceptItem, upstream backs up. The item is
-    /// preserved (no silent loss per SC-09) but the building wedges
-    /// until destroyed. Approximates classic Shapez "reject on input"
-    /// UX; true never-enters-the-building reject isn't achievable
-    /// without per-item-type CanAcceptItem customization, which the
-    /// BeltLane API doesn't appear to expose.
+    /// <b>Unsupported item types (SC-09):</b> three categories of input
+    /// are handled differently from the standard solid shape path:
+    /// </para>
+    /// <list type="number">
+    ///   <item><b>Non-ShapeItem IBeltItem</b> (e.g. <c>FluidPackageItem</c>) —
+    ///     wedge-rejected at the ProcessingLane AcceptHook.</item>
+    ///   <item><b>ShapeItems containing crystal (code 'c') or pin
+    ///     (code 'P') sub-parts</b> — also wedge-rejected. The split math
+    ///     can't produce valid ShapeIds from lone crystal/pin quadrants
+    ///     (crystals have special fusion rules, pins have special
+    ///     connectivity rules — per the decompiled <c>ShapeLogic</c>
+    ///     source), so running the split would produce all-empty
+    ///     results and silently consume the item. Early reject avoids
+    ///     that.</item>
+    ///   <item><b>Standard solid shapes</b> (including painted) — split
+    ///     normally into four per-quadrant outputs.</item>
+    /// </list>
+    /// <para>
+    /// Wedge-reject mechanism: AcceptHook leaves <c>item</c> unchanged,
+    /// so the belt system stores it on the terminal ProcessingLane.
+    /// ProcessingLane has no downstream, so the item can't advance;
+    /// CanAcceptItem returns false once it's there; InputLane can't
+    /// chain-forward further items; InputLane fills; upstream
+    /// HandOverItem fails CanAcceptItem; upstream belt backs up
+    /// visibly. Classic Shapez "reject on input" UX.
+    /// </para>
+    /// <para>
+    /// <b>Wedge auto-clear (stagnation timeout).</b> A permanently
+    /// wedged item would force the player to destroy the building to
+    /// recover. We avoid that via
+    /// <see cref="FourWaySplitterSimulationState.ProcessingLaneStagnantTicks"/>:
+    /// Update increments the counter each tick ProcessingLane has an
+    /// item and resets it whenever ProcessingLane is empty. Standard
+    /// shapes are consumed in-hook (item never "stays" on
+    /// ProcessingLane) so the counter never accumulates for them.
+    /// Wedged crystals / pins accumulate ticks and are dropped once the
+    /// counter exceeds <see cref="WedgeStagnationTickLimit"/>, which is
+    /// tuned to a few seconds — long enough for the player to see the
+    /// upstream backup, short enough that removing the crystal source
+    /// recovers the building without destroying it.
     /// </para>
     /// </summary>
     public class FourWaySplitterSimulation : Simulation<FourWaySplitterSimulationState>, IItemSimulation, IUpdatableSimulation
     {
+        /// <summary>
+        /// Number of Update ticks a wedged item is allowed to stay on
+        /// ProcessingLane before auto-clear drops it. See SC-09 auto-clear
+        /// documentation in the class-level docstring for the full rationale.
+        /// Tuned conservatively — short enough that removing the crystal
+        /// source recovers the building within a few seconds, long enough
+        /// that the upstream backup is visible to the player.
+        /// </summary>
+        private const int WedgeStagnationTickLimit = 240;
+
         public readonly BeltLane InputLane;
         public readonly BeltLane ProcessingLane;
         public readonly BeltLane NorthOutputLane;
@@ -106,16 +145,43 @@ namespace FourWaySplitter
             {
                 if (item is not ShapeItem shapeItem)
                 {
-                    // SC-09 (PLAN-P03-001): non-shape items rejected via
-                    // wedge-style backpressure. Leave `item` unchanged —
-                    // stored on this terminal lane with no downstream
-                    // drain. ProcessingLane fills → InputLane can't
-                    // chain-forward → upstream belt backs up via natural
-                    // CanAcceptItem propagation. Item preserved (no
-                    // silent loss per SC-09) at the cost of wedging the
-                    // building until the player destroys it. See class
-                    // docstring for the full rationale.
+                    // SC-09: non-shape IBeltItem (FluidPackageItem, etc.)
+                    // rejected via wedge-style backpressure. Leave `item`
+                    // unchanged — stored on this terminal lane with no
+                    // downstream drain. ProcessingLane fills → InputLane
+                    // can't chain-forward → upstream belt backs up via
+                    // natural CanAcceptItem propagation.
                     return;
+                }
+
+                // SC-09 continued: reject non-standard shape sub-parts
+                // (crystals and pins) BEFORE running the split. Crystals
+                // (code 'c') and pins (code 'P') are the two known
+                // non-standard IShapeSubPart implementations per the
+                // decompiled ShapeLogic source — both have special
+                // connection/fusion rules that the regular split math
+                // doesn't handle. Running the split on a crystal-bearing
+                // shape produces four ShapeCollapseResults with
+                // Shape.IsInvalid (because a lone crystal part can't be
+                // registered as a valid ShapeId) → ResultsInEmptyShape
+                // returns true → our filter produces no output items →
+                // the item would be silently consumed. Instead, wedge-
+                // reject here so the upstream belt backs up like any
+                // other unsupported item type. Painted shapes are NOT
+                // caught here because paint is a color applied to
+                // standard shape sub-parts (still code 'C' / 'R' / 'W' /
+                // 'S' etc.) — the split math handles them correctly.
+                foreach (ShapeLayer layer in shapeItem.Definition.Layers)
+                {
+                    foreach (ShapePart part in layer.Parts)
+                    {
+                        if (part.IsEmpty) continue;
+                        char code = part.Shape.Code;
+                        if (code == 'c' || code == 'P')
+                        {
+                            return; // wedge-reject
+                        }
+                    }
                 }
 
                 FourWaySplitResult result = fourWaySplit.Execute(shapeItem.Definition);
@@ -199,6 +265,26 @@ namespace FourWaySplitter
             WestOutputLane.Update(deltaTicks);
             ProcessingLane.Update(deltaTicks);
             InputLane.Update(deltaTicks);
+
+            // SC-09 wedge auto-clear. Track how long ProcessingLane has held
+            // an item. Standard shapes are consumed in the AcceptHook so
+            // never accumulate; only wedged crystal/pin items or non-shape
+            // IBeltItems build up stagnation time. Once past the threshold,
+            // drop the wedged item so the building recovers without the
+            // player having to destroy and rebuild it.
+            if (ProcessingLane.HasItem)
+            {
+                State.ProcessingLaneStagnantTicks++;
+                if (State.ProcessingLaneStagnantTicks > WedgeStagnationTickLimit)
+                {
+                    ProcessingLane.Clear();
+                    State.ProcessingLaneStagnantTicks = 0;
+                }
+            }
+            else
+            {
+                State.ProcessingLaneStagnantTicks = 0;
+            }
         }
     }
 }

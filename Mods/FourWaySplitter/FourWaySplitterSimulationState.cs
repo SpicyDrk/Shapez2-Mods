@@ -11,6 +11,15 @@ namespace FourWaySplitter
     /// ProcessingLane.AcceptHook fires in chain-forward context running the
     /// split + fan-out onto the four output lanes, and the game's
     /// IItemProvider polling drains the output lanes.
+    ///
+    /// <see cref="ProcessingLaneStagnantTicks"/> is the stagnation counter
+    /// used for SC-09's wedge-reject auto-clear: it increments each Update
+    /// that ProcessingLane has an item and resets to zero otherwise. Normal
+    /// shape items never accumulate stagnation (they're consumed
+    /// immediately in the AcceptHook). Crystals / pins that the hook
+    /// wedges will accumulate until the counter exceeds the threshold at
+    /// which point the Update clears the stuck item. See
+    /// FourWaySplitterSimulation for the clear logic and threshold.
     /// </summary>
     [SyncableIdentifier("FourWaySplitterState")]
     public class FourWaySplitterSimulationState : ISimulationState
@@ -23,6 +32,9 @@ namespace FourWaySplitter
         public readonly BeltLaneState SouthOutputLaneState = new();
         public readonly BeltLaneState WestOutputLaneState = new();
 
+        // SC-09 wedge auto-clear counter. Plain int — Sync via SyncInt_4.
+        public int ProcessingLaneStagnantTicks;
+
         public void Sync(ISerializationVisitor visitor)
         {
             InputLaneState.Sync(visitor);
@@ -32,6 +44,8 @@ namespace FourWaySplitter
             EastOutputLaneState.Sync(visitor);
             SouthOutputLaneState.Sync(visitor);
             WestOutputLaneState.Sync(visitor);
+
+            visitor.SyncInt_4(ref ProcessingLaneStagnantTicks);
         }
     }
 }
