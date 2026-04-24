@@ -4,26 +4,19 @@ using Game.Core.Simulation;
 namespace FourWaySplitter
 {
     /// <summary>
-    /// Simulation state for the FourWaySplitter. One input lane, four staging
-    /// lanes, and four cardinal output lanes (N/E/S/W on level 2). The split
-    /// is computed synchronously in the input AcceptHook, then items are
-    /// HandOverItem'd onto the staging lanes, which chain-forward to their
-    /// respective output lanes via the 3-arg BeltLane ctor. Chain-forwarding
-    /// lands items at the providable position on the output lane — the
-    /// position the game's IItemProvider polling drains from. Direct
-    /// HandOverItem onto a 2-arg terminal output lane does NOT produce a
-    /// providable-position item, which caused the break-stall bug fixed in
-    /// PLAN-P02-008.
+    /// Simulation state for the FourWaySplitter. Mirrors DiagonalCutter's
+    /// pattern: items arrive at InputLane via external HandOverItem from the
+    /// upstream belt, traverse InputLane via Update, chain-forward to
+    /// ProcessingLane (the 3-arg downstream binding on InputLane drives this),
+    /// ProcessingLane.AcceptHook fires in chain-forward context running the
+    /// split + fan-out onto the four output lanes, and the game's
+    /// IItemProvider polling drains the output lanes.
     /// </summary>
     [SyncableIdentifier("FourWaySplitterState")]
     public class FourWaySplitterSimulationState : ISimulationState
     {
         public readonly BeltLaneState InputLaneState = new();
-
-        public readonly BeltLaneState NorthStagingLaneState = new();
-        public readonly BeltLaneState EastStagingLaneState = new();
-        public readonly BeltLaneState SouthStagingLaneState = new();
-        public readonly BeltLaneState WestStagingLaneState = new();
+        public readonly BeltLaneState ProcessingLaneState = new();
 
         public readonly BeltLaneState NorthOutputLaneState = new();
         public readonly BeltLaneState EastOutputLaneState = new();
@@ -33,11 +26,7 @@ namespace FourWaySplitter
         public void Sync(ISerializationVisitor visitor)
         {
             InputLaneState.Sync(visitor);
-
-            NorthStagingLaneState.Sync(visitor);
-            EastStagingLaneState.Sync(visitor);
-            SouthStagingLaneState.Sync(visitor);
-            WestStagingLaneState.Sync(visitor);
+            ProcessingLaneState.Sync(visitor);
 
             NorthOutputLaneState.Sync(visitor);
             EastOutputLaneState.Sync(visitor);
