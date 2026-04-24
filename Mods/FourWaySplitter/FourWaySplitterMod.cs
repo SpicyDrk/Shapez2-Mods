@@ -135,11 +135,27 @@ namespace FourWaySplitter
             // mod's id isn't a built-in game id). See deviation #5 in the
             // class-level docstring and UAT-P02.md (2026-04-23).
             // TODO(P03): bundle a real mesh — see ROADMAP R7.
+            // P03 Task 3 mesh upgrade attempt (PLAN-P03-001). WithCopiedStaticDrawData
+            // reuses an existing game building's mesh rather than the invisible
+            // LODEmptyMesh placeholder. "FullCutter" is a candidate id found via
+            // `strings SPZGameAssembly.dll` per STATE.md parking lot (2026-04-23).
+            // CS0618: the string-ctor for BuildingDefinitionId is marked obsolete
+            // with guidance to avoid hardcoded ids; for cross-building mesh reuse
+            // there's no non-obsolete alternative (same situation as DiagonalCutter's
+            // cross-id references). Suppress locally.
+            // Stop-rule (per plan): if this id doesn't resolve at mod-load, revert
+            // to LODEmptyMesh via CreateDrawData() below (kept as fallback).
+#pragma warning disable CS0618
+            BuildingDefinitionId fullCutterId = new("FullCutter");
+#pragma warning restore CS0618
+
             IBuildingBuilder fourWaySplitterBuilder = Building.Create(definitionId)
                 .WithConnectorData(connectorData)
                 .DynamicallyRendering<FourWaySplitterSimulationRenderer, FourWaySplitterSimulation,
                     IFourWaySplitterDrawData>(new FourWaySplitterDrawData())
-                .WithStaticDrawData(CreateDrawData())
+                .WithCopiedStaticDrawData(fullCutterId)
+                // Fallback (commented out, swap with WithCopiedStaticDrawData above if
+                // FullCutter doesn't resolve): .WithStaticDrawData(CreateDrawData())
                 .WithoutSound()
                 .WithoutSimulationConfiguration()
                 .WithEfficiencyData(new BuildingEfficiencyData(2.0f, 1));
