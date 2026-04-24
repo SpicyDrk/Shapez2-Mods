@@ -55,6 +55,20 @@ namespace FourWaySplitter
     /// MVP scope: no delay / processing delay. The configuration's
     /// ProcessingDelay is still exposed for future expansion but is not
     /// wired into a DelayBeltLane here (CONSTRAINTS §5a: ship MVP first).
+    ///
+    /// <para>
+    /// <b>Unsupported item types (SC-09, PLAN-P03-001):</b> non-<see cref="ShapeItem"/>
+    /// inputs (crystals, fluids, pins, painted shapes) are rejected via
+    /// wedge-style backpressure. The item is stored on the terminal
+    /// ProcessingLane indefinitely; ProcessingLane fills up, InputLane
+    /// chain-forward blocks, InputLane fills, upstream belt's
+    /// HandOverItem fails CanAcceptItem, upstream backs up. The item is
+    /// preserved (no silent loss per SC-09) but the building wedges
+    /// until destroyed. Approximates classic Shapez "reject on input"
+    /// UX; true never-enters-the-building reject isn't achievable
+    /// without per-item-type CanAcceptItem customization, which the
+    /// BeltLane API doesn't appear to expose.
+    /// </para>
     /// </summary>
     public class FourWaySplitterSimulation : Simulation<FourWaySplitterSimulationState>, IItemSimulation, IUpdatableSimulation
     {
@@ -92,9 +106,15 @@ namespace FourWaySplitter
             {
                 if (item is not ShapeItem shapeItem)
                 {
-                    // Pass-through for non-shape items — leave `item`
-                    // unmodified. Formal crystals/fluids/pins policy is
-                    // deferred to P03.
+                    // SC-09 (PLAN-P03-001): non-shape items rejected via
+                    // wedge-style backpressure. Leave `item` unchanged —
+                    // stored on this terminal lane with no downstream
+                    // drain. ProcessingLane fills → InputLane can't
+                    // chain-forward → upstream belt backs up via natural
+                    // CanAcceptItem propagation. Item preserved (no
+                    // silent loss per SC-09) at the cost of wedging the
+                    // building until the player destroys it. See class
+                    // docstring for the full rationale.
                     return;
                 }
 
