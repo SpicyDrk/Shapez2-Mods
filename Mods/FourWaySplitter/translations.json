@@ -1,6 +1,8 @@
 {
   "en-US": {
     "mod.fourwaysplitter.title": "Four-Way Splitter",
-    "mod.fourwaysplitter.description": "Splits the four quadrants of an incoming shape to four cardinal outputs on the upper platform level."
+    "mod.fourwaysplitter.description": "Splits the four quadrants of an incoming shape to four cardinal outputs on the upper platform level.",
+    "building-variant.four-way-splitter.title": "Four-Way Splitter",
+    "building-variant.four-way-splitter.description": "Splits an incoming shape into its four per-quadrant copies, each flowing out a different cardinal output on the upper platform level.\n\nQuadrant mapping: TR → North, BR → East, BL → South, TL → West. Multi-layer shapes preserve their vertical structure per quadrant.\n\nAccepts standard solid shapes only; crystals, fluids, and pins will back up on the input belt."
   }
 }
