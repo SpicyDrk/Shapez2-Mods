@@ -135,27 +135,24 @@ namespace FourWaySplitter
             // mod's id isn't a built-in game id). See deviation #5 in the
             // class-level docstring and UAT-P02.md (2026-04-23).
             // TODO(P03): bundle a real mesh — see ROADMAP R7.
-            // P03 Task 3 mesh upgrade attempt (PLAN-P03-001). WithCopiedStaticDrawData
-            // reuses an existing game building's mesh rather than the invisible
-            // LODEmptyMesh placeholder. "FullCutter" is a candidate id found via
-            // `strings SPZGameAssembly.dll` per STATE.md parking lot (2026-04-23).
-            // CS0618: the string-ctor for BuildingDefinitionId is marked obsolete
-            // with guidance to avoid hardcoded ids; for cross-building mesh reuse
-            // there's no non-obsolete alternative (same situation as DiagonalCutter's
-            // cross-id references). Suppress locally.
-            // Stop-rule (per plan): if this id doesn't resolve at mod-load, revert
-            // to LODEmptyMesh via CreateDrawData() below (kept as fallback).
-#pragma warning disable CS0618
-            BuildingDefinitionId fullCutterId = new("FullCutter");
-#pragma warning restore CS0618
-
+            // Mesh: self-contained LODEmptyMesh placeholder (see CreateDrawData).
+            // CONSTRAINTS §5b forbids bundling custom FBX in v1, so we can't ship
+            // a real mesh. Reusing built-in game building meshes via
+            // WithCopiedStaticDrawData was attempted three times with three
+            // different BuildingDefinitionId strings ("DiagonalCutter" in Plan-002,
+            // "FullCutter" in P03 Plan-001, "CutterDefault" in P03 Plan-002) —
+            // every attempt crashed with KeyNotFoundException at main-menu init.
+            // The game's built-in-building id strings don't appear to be exposed
+            // via the API path we tried; the DiagonalCutter sample doesn't
+            // demonstrate cross-id reuse either (it ships its own .fbx via
+            // AssetBundleHelper). A proper mesh upgrade needs a follow-up story
+            // that introduces an FBX asset bundle + CreateDrawData similar to
+            // DiagonalCutter's pattern. See STATE.md parking lot.
             IBuildingBuilder fourWaySplitterBuilder = Building.Create(definitionId)
                 .WithConnectorData(connectorData)
                 .DynamicallyRendering<FourWaySplitterSimulationRenderer, FourWaySplitterSimulation,
                     IFourWaySplitterDrawData>(new FourWaySplitterDrawData())
-                .WithCopiedStaticDrawData(fullCutterId)
-                // Fallback (commented out, swap with WithCopiedStaticDrawData above if
-                // FullCutter doesn't resolve): .WithStaticDrawData(CreateDrawData())
+                .WithStaticDrawData(CreateDrawData())
                 .WithoutSound()
                 .WithoutSimulationConfiguration()
                 .WithEfficiencyData(new BuildingEfficiencyData(2.0f, 1));
