@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Cap-raising mod: lifts the Shapez 2 platform-layer cap from 3 to 6 once
+    the player reaches the existing Milestone_PlatformLayer3 unlock. P01
+    leaves this as a no-op skeleton; the actual cap patch lands in P02 once
+    the cap-discovery spike (.oes/cap-discovery.md) identifies the
+    enforcement sites.
+
+    TargetFramework / LangVersion / Nullable come from Directory.Build.props.
+    OutputPath lands the .dll in $(SPZ2_PERSISTENT)/mods/MoreLayers/.
+  -->
+
+  <PropertyGroup>
+    <OutputPath>$(ShapezModOutputRoot)$(MSBuildProjectName)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="ShapezShifter">
+      <HintPath>$(SPZ2_SHIFTER)\ShapezShifter.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Modding">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Modding.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Core">
+      <HintPath>$(SPZ2_PATH)\Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="JetBrains.Annotations">
+      <HintPath>$(SPZ2_PATH)\JetBrains.Annotations.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="manifest.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="translations.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

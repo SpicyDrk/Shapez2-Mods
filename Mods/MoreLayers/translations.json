@@ -1,0 +1,6 @@
+{
+  "en-US": {
+    "mod.morelayers.title": "More Layers",
+    "mod.morelayers.description": "Raises the platform-layer cap from 3 to 6 once you reach the vanilla Layer-3 milestone. All buildings that work on layers 1-3 work the same on layers 4, 5, 6."
+  }
+}

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Plain console "smoke check" app, ported verbatim from HelloWorld.Tests.
+      Bypasses xunit/VSTest entirely (the .NET 10 SDK has unresolved VSTest
+      assembly-loading issues — see HelloWorld.Tests.csproj for the full
+      rationale). Validates the MoreLayers manifest shape only — runtime
+      cap-raise behavior is verified in-game in P02/P03.
+
+      Run via: dotnet run project Tests/MoreLayers.Tests/
+    -->
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+
+    <!-- Not a Shapez mod: skip the env-var build-gate check and default output. -->
+    <IsShapezMod>false</IsShapezMod>
+
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>
