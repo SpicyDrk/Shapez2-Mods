@@ -2,10 +2,17 @@
 
   <!--
     Cap-raising mod: lifts the Shapez 2 platform-layer cap from 3 to 6 once
-    the player reaches the existing Milestone_PlatformLayer3 unlock. P01
-    leaves this as a no-op skeleton; the actual cap patch lands in P02 once
-    the cap-discovery spike (.oes/cap-discovery.md) identifies the
-    enforcement sites.
+    the player reaches the existing Milestone_PlatformLayer3 unlock.
+
+    P01 scaffolded the no-op skeleton.
+    P02 Plan-001 added the cap-raising IGameScenarioRewirer.
+    P02 Plan-002 added the bounds-patch hook on IslandChunkStaticBuildingsDrawer
+    (UAT-P02 fix — see .oes/uat/UAT-P02.md and .oes/plans/PLAN-P02-002.md).
+
+    Krafs.Publicizer exposes private fields on SPZGameAssembly types
+    (notably IslandChunkStaticBuildingsDrawer.ContentBounds) so the bounds
+    hook can rewrite the readonly Bounds field directly. MonoMod.RuntimeDetour
+    is referenced compile-time-only — Shifter ships the runtime DLL.
 
     TargetFramework / LangVersion / Nullable come from Directory.Build.props.
     OutputPath lands the .dll in $(SPZ2_PERSISTENT)/mods/MoreLayers/.
@@ -15,25 +22,97 @@
     <OutputPath>$(ShapezModOutputRoot)$(MSBuildProjectName)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+
+    <!-- Suppress CS0436: Krafs.Publicizer and MonoMod.Utils both ship
+         IgnoresAccessChecksToAttribute. The compiler picks one and warns; either
+         works fine at runtime (both have identical semantics). Targeted suppression
+         keeps our "0 warnings" health metric in CONSTRAINTS.md intact. -->
+    <NoWarn>$(NoWarn);CS0436</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Shifter (modding framework) — IGameScenarioRewirer, GameRewirers -->
     <Reference Include="ShapezShifter">
       <HintPath>$(SPZ2_SHIFTER)\ShapezShifter.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <!-- Game core — GameScenario, ResearchMechanics, ResearchMechanicId -->
+    <Reference Include="SPZGameAssembly">
+      <HintPath>$(SPZ2_PATH)\SPZGameAssembly.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core">
+      <HintPath>$(SPZ2_PATH)\Game.Core.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Game.Core.Modding">
       <HintPath>$(SPZ2_PATH)\Game.Core.Modding.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Game.Core.Coordinates">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Coordinates.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Model">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Model.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Layout">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Layout.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Simulation">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Simulation.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Rendering">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Rendering.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Core">
       <HintPath>$(SPZ2_PATH)\Core.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="JetBrains.Annotations">
-      <HintPath>$(SPZ2_PATH)\JetBrains.Annotations.dll</HintPath>
+
+    <!-- Unity runtime — needed for Bounds (UnityEngine namespace), used in the bounds-patch hook.
+         Note: we deliberately do NOT reference JetBrains.Annotations.dll here. UnityEngine.CoreModule
+         embeds the same namespace types ([UsedImplicitly] et al.); referencing both yields CS0433.
+         Same dodge as FourWaySplitter.csproj. -->
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(SPZ2_PATH)\UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+  </ItemGroup>
+
+  <!-- MonoMod.RuntimeDetour: compile-time-only. Shifter ships v25.3.0 at runtime
+       (see ShapezShifter.deps.json). ExcludeAssets="runtime" prevents shipping
+       a duplicate copy in our mod directory. -->
+  <ItemGroup>
+    <PackageReference Include="MonoMod.RuntimeDetour" Version="25.3.0">
+      <ExcludeAssets>runtime</ExcludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!-- Krafs.Publicizer: expose internal/private game types so the bounds hook
+       can directly write IslandChunkStaticBuildingsDrawer.ContentBounds (a
+       private readonly field). Same pattern as FourWaySplitter.csproj. -->
+  <PropertyGroup>
+    <PublicizerClearCacheOnClean>true</PublicizerClearCacheOnClean>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Krafs.Publicizer" Version="2.3.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+
+    <Publicize Include="SPZGameAssembly" />
   </ItemGroup>
 
   <ItemGroup>
