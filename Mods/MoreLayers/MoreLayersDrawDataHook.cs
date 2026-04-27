@@ -161,6 +161,7 @@ namespace MoreLayers
         /// arrays (annotated <c>[RequiredListLength(3)]</c> in the decompiled source)
         /// without naming them individually — robust to game updates that add new
         /// same-shape size-3 arrays. Idempotent: arrays already at size ≥ 7 are skipped.
+        /// Plan-007 diagnostics confirmed this extension works (Player.log lines 342-347).
         /// </summary>
         private static void ExtendThemeResourceArrays(VisualThemeBaseResources resources)
         {

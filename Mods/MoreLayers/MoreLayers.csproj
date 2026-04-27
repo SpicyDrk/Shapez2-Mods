@@ -87,6 +87,12 @@
       <HintPath>$(SPZ2_PATH)\UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+
+    <!-- Unity Audio — for AudioListener (param of MapSoundManager ctor) -->
+    <Reference Include="UnityEngine.AudioModule">
+      <HintPath>$(SPZ2_PATH)\UnityEngine.AudioModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
 
   <!-- MonoMod.RuntimeDetour: compile-time-only. Shifter ships v25.3.0 at runtime
