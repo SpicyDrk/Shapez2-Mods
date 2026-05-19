@@ -1,0 +1,8 @@
+{
+  "en-US": {
+    "mod.smartcutter.title": "Smart Cutter",
+    "mod.smartcutter.description": "Wire-controlled cutter. The wire-input shape acts as a keep-mask applied to the belt-input shape.",
+    "building-variant.smart-cutter.title": "Smart Cutter",
+    "building-variant.smart-cutter.description": "Cuts an incoming belt shape using a wire-input shape as a keep-mask: filled quadrants of the wire shape are kept on the output, empty quadrants are cut away.\n\nPhase 1 reads only the bottom layer of the wire shape; the resulting mask applies uniformly to every layer of the input shape (a stacked input is masked identically through every layer, matching how the stock cutters operate on stacked shapes).\n\nAccepts standard solid shapes only; crystals, fluids, and pins will back up on the input belt. An empty wire signal (no shape on the wire) drops the input shape in Phase 1; later phases will stall the building instead."
+  }
+}

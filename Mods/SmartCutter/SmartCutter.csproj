@@ -1,0 +1,139 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    SmartCutter — wire-controlled cutter mod. The wire-input shape acts as a
+    keep-mask applied to the belt-input shape. Phase P01 scaffold; multi-layer
+    flatten + stall-on-empty wire arrives in P02.
+
+    References mirror FourWaySplitter (the full shape / sim / rendering /
+    toolbar API surface). Inherits TargetFramework / LangVersion / Nullable
+    from the workspace Directory.Build.props.
+  -->
+
+  <PropertyGroup>
+    <OutputPath>$(ShapezModOutputRoot)$(MSBuildProjectName)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="ShapezShifter">
+      <HintPath>$(SPZ2_SHIFTER)\ShapezShifter.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <Reference Include="SPZGameAssembly">
+      <HintPath>$(SPZ2_PATH)\SPZGameAssembly.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Core">
+      <HintPath>$(SPZ2_PATH)\Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Core.Localization">
+      <HintPath>$(SPZ2_PATH)\Core.Localization.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core">
+      <HintPath>$(SPZ2_PATH)\Game.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Modding">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Modding.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <Reference Include="Game.Core.Coordinates">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Coordinates.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Model">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Model.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Layout.Model">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Layout.Model.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Simulation">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Simulation.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <Reference Include="Game.Core.Simulation">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Simulation.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Rendering">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Rendering.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <Reference Include="Game.Content.Features">
+      <HintPath>$(SPZ2_PATH)\Game.Content.Features.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Interaction">
+      <HintPath>$(SPZ2_PATH)\Game.Interaction.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Orchestration">
+      <HintPath>$(SPZ2_PATH)\Game.Orchestration.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(SPZ2_PATH)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule">
+      <HintPath>$(SPZ2_PATH)\UnityEngine.AssetBundleModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>$(SPZ2_PATH)\UnityEngine.ImageConversionModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Mathematics">
+      <HintPath>$(SPZ2_PATH)\Unity.Mathematics.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <!-- Note: deliberately do NOT reference JetBrains.Annotations.dll here.
+         UnityEngine.CoreModule embeds the same namespace types; referencing
+         both yields CS0433 on [UsedImplicitly] et al. We rely on Unity's
+         embedded version. -->
+  </ItemGroup>
+
+  <PropertyGroup>
+    <PublicizerClearCacheOnClean>true</PublicizerClearCacheOnClean>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Krafs.Publicizer" Version="2.3.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+
+    <Publicize Include="SPZGameAssembly" />
+    <Publicize Include="Game.Core.Simulation" />
+    <Publicize Include="Game.Core.Map.Simulation" />
+    <Publicize Include="Game.Core.Rendering" />
+    <Publicize Include="Game.Core.Map.Model" />
+    <Publicize Include="Game.Orchestration" />
+    <Publicize Include="Game.Content.Features" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="manifest.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="translations.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources/**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

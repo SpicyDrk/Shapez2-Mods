@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Plain console "smoke check" app. Same pattern as Tests/FourWaySplitter.Tests/.
+      Run via: dotnet run project Tests/SmartCutter.Tests/
+    -->
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+
+    <!-- Not a Shapez mod: skip the env-var build-gate check and default output. -->
+    <IsShapezMod>false</IsShapezMod>
+
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Link the pure mask helper directly from the SmartCutter mod source.
+      Single source of truth — the helper has zero game-runtime dependencies
+      (only System types), so it compiles cleanly into this net8.0 console
+      app without dragging in SPZGameAssembly etc.
+    -->
+    <Compile Include="..\..\Mods\SmartCutter\SmartCutMask.cs" Link="SmartCutMask.cs" />
+  </ItemGroup>
+
+</Project>
