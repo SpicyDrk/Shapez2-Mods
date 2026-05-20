@@ -39,12 +39,24 @@ namespace SmartCutter
         private static readonly UnityMatrix4x4 OrientationFix =
             UnityMatrix4x4.Rotate(UnityEngine.Quaternion.Euler(-90f, 0f, 0f));
 
-        public static UnityMesh LoadCombinedMeshFromFile(string file)
+        /// <summary>
+        /// N↔S mirror (flip along the Z axis, which is the N↔S axis after the
+        /// orientation fix). Applied on top of <see cref="OrientationFix"/> when
+        /// loading the mirror variant so the asymmetric body geometry flips with
+        /// the wire-connector face. Vanilla buildings avoid this because their
+        /// bodies are designed Y-symmetric; ours has an asymmetric wire-side cue.
+        /// </summary>
+        private static readonly UnityMatrix4x4 MirrorFix =
+            UnityMatrix4x4.Scale(new UnityEngine.Vector3(1f, 1f, -1f)) * OrientationFix;
+
+        public static UnityMesh LoadCombinedMeshFromFile(string file, bool mirror = false)
         {
             AssimpContext context = new AssimpContext();
             try
             {
                 Scene scene = context.ImportFile(file, PostProcessPreset.TargetRealTimeMaximumQuality);
+
+                UnityMatrix4x4 transformMatrix = mirror ? MirrorFix : OrientationFix;
 
                 CombineInstance[] combine = new CombineInstance[scene.MeshCount];
                 for (int i = 0; i < scene.MeshCount; i++)
@@ -53,16 +65,26 @@ namespace SmartCutter
                     combine[i] = new CombineInstance
                     {
                         mesh = sub,
-                        transform = OrientationFix,
+                        transform = transformMatrix,
                         subMeshIndex = 0
                     };
                 }
 
                 string combinedName = scene.MeshCount > 0
-                    ? scene.Meshes[0].Name + "_Combined"
-                    : "SmartCutter_Body_Combined";
+                    ? scene.Meshes[0].Name + (mirror ? "_Mirrored" : "_Combined")
+                    : (mirror ? "SmartCutter_Body_Mirrored" : "SmartCutter_Body_Combined");
                 UnityMesh combined = new UnityMesh { name = combinedName };
                 combined.CombineMeshes(combine, mergeSubMeshes: true, useMatrices: true);
+
+                // CombineMeshes with a negative-determinant transform inverts the
+                // triangle winding (back-faces become front-faces). Recalculate
+                // normals so lighting matches the new winding.
+                if (mirror)
+                {
+                    FlipTriangleWinding(combined);
+                    combined.RecalculateNormals();
+                    combined.RecalculateBounds();
+                }
 
                 for (int i = 0; i < combine.Length; i++)
                 {
@@ -77,6 +99,28 @@ namespace SmartCutter
             finally
             {
                 context.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Reverse triangle winding on every submesh in place. CombineMeshes applied
+        /// to a transform with negative determinant (our N↔S mirror) inverts winding,
+        /// turning front-faces into back-faces. Swapping the 2nd and 3rd index of each
+        /// triangle restores correct front-face orientation before
+        /// <c>RecalculateNormals</c> is called.
+        /// </summary>
+        private static void FlipTriangleWinding(UnityMesh mesh)
+        {
+            for (int sub = 0; sub < mesh.subMeshCount; sub++)
+            {
+                int[] tris = mesh.GetTriangles(sub);
+                for (int i = 0; i + 2 < tris.Length; i += 3)
+                {
+                    int swap = tris[i + 1];
+                    tris[i + 1] = tris[i + 2];
+                    tris[i + 2] = swap;
+                }
+                mesh.SetTriangles(tris, sub);
             }
         }
 

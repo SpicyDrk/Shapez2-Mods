@@ -9,6 +9,7 @@ using ShapezShifter.Flow;
 using ShapezShifter.Flow.Atomic;
 using ShapezShifter.Flow.Research;
 using ShapezShifter.Flow.Toolbar;
+using ShapezShifter.Hijack;
 using ShapezShifter.Kit;
 using ShapezShifter.Textures;
 using System;
@@ -56,6 +57,7 @@ namespace SmartCutter
 #pragma warning disable CS0618
             BuildingDefinitionGroupId groupId = new("SmartCutterGroup");
             BuildingDefinitionId definitionId = new("SmartCutter");
+            BuildingDefinitionId mirroredDefinitionId = new("SmartCutterMirrored");
 #pragma warning restore CS0618
 
             string titleId = "building-variant.smart-cutter.title";
@@ -75,11 +77,7 @@ namespace SmartCutter
                 .WithPreferredPlacement(DefaultPreferredPlacementMode.LinePerpendicular)
                 .WithDefaultStructureOverview();
 
-            // Single-tile connector data: shape-in west, shape-out east, wire-in
-            // north. Default shape input/output directions are W/E in Shifter's
-            // ShapeConnectorConfig; wire input is placed on the north face via
-            // CustomInput so it sits adjacent to the shape lanes without
-            // colliding with them.
+            // Default variant: shape-in west, shape-out east, wire-in NORTH.
             IBuildingConnectorData connectorData = BuildingConnectors.SingleTile()
                 .AddShapeInput(ShapeConnectorConfig.DefaultInput())
                 .AddShapeOutput(ShapeConnectorConfig.DefaultOutput())
@@ -90,7 +88,7 @@ namespace SmartCutter
                 .WithConnectorData(connectorData)
                 .DynamicallyRendering<SmartCutterSimulationRenderer, SmartCutterSimulation,
                     ISmartCutterDrawData>(new SmartCutterDrawData())
-                .WithStaticDrawData(CreateDrawData(meshPath))
+                .WithStaticDrawData(CreateDrawData(meshPath, mirror: false))
                 .WithoutSound()
                 .WithoutSimulationConfiguration()
                 .WithEfficiencyData(new BuildingEfficiencyData(2.0f, 1));
@@ -100,22 +98,51 @@ namespace SmartCutter
                 .WithBuilding(smartCutterBuilder, smartCutterGroup)
                 .UnlockedAtMilestone(new ByIndexMilestoneSelector(new Index(0)))
                 .WithDefaultPlacement()
-                // Toolbar slot: follows the cutter cluster like FourWaySplitter.
-                // Resolution is runtime-dependent on the player's game version.
                 .InToolbar(ToolbarElementLocator.Root().ChildAt(0).ChildAt(2).ChildAt(^1).InsertAfter())
                 .WithSimulation(new SmartCutterFactoryBuilder(), logger)
                 .WithAtomicShapeProcessingModules(BuiltinResearchSpeed.CutterSpeed, 2.0f)
                 .WithPrediction(new Operation1In1OutPredictionFactoryBuilder(), logger)
                 .Build();
+
+            // Mirrored variant: register a SECOND BuildingDefinition into the same
+            // group via a rewirer trio. Matches the vanilla flow where
+            // BuildingDefinitionFactory.CreateDefinitions yields BOTH the default
+            // and mirrored definitions into one group with IBuildingMirroringDefinition
+            // cross-links — which is what makes the F-key cycle between them during
+            // placement. Going through the Shifter atomic chain a second time would
+            // produce a duplicate toolbar entry (and a duplicate group registration),
+            // so the mirror is wired by hand.
+            //
+            // The mirror BuildingDefinition itself is registered lazily by the
+            // simulation rewirer (see SmartCutterMirrorSimulationRewirer) rather
+            // than from an IBuildingsRewirer — Shifter's default-chain rewirers
+            // self-cycle handles every pass and would otherwise end up running
+            // AFTER our static-handle rewirer on subsequent passes, causing the
+            // mirror BuildingDefinition to be missing when downstream sim/pred/
+            // modules systems tried to resolve it.
+            var mirrorState = new SmartCutterMirrorState
+            {
+                MirrorDrawData = CreateDrawData(meshPath, mirror: true),
+            };
+            GameRewirers.AddRewirer(new SmartCutterMirrorSimulationRewirer(definitionId, mirroredDefinitionId, mirrorState, new SmartCutterFactoryBuilder(), logger));
+            GameRewirers.AddRewirer(new SmartCutterMirrorPredictionRewirer(definitionId, mirroredDefinitionId, mirrorState, new Operation1In1OutPredictionFactoryBuilder(), logger));
+            GameRewirers.AddRewirer(new SmartCutterMirrorModulesRewirer(mirrorState, BuiltinResearchSpeed.CutterSpeed, 2.0f, logger));
         }
 
         /// <summary>
         /// Build the BuildingDrawData. If a body mesh exists at <paramref name="meshPath"/>,
-        /// load it via Shifter's Assimp-backed FileMeshLoader and use it across all
-        /// three LOD slots. Otherwise fall back to LODEmptyMesh × 3 and log a warning
-        /// so the mod still loads cleanly while art is being prepared.
+        /// load it via the multi-mesh-aware loader and use it across all three LOD slots.
+        /// Otherwise fall back to LODEmptyMesh × 3 and log a warning so the mod still
+        /// loads cleanly while art is being prepared.
+        ///
+        /// <para>
+        /// <paramref name="mirror"/> selects the N↔S-flipped orientation used by the
+        /// mirror variant. We load the FBX twice (once per variant) so the mirror gets
+        /// its own Unity <c>Mesh</c> with reversed winding + recalculated normals —
+        /// scaling the transform alone at render time would back-face-cull the body.
+        /// </para>
         /// </summary>
-        private BuildingDrawData CreateDrawData(string meshPath)
+        private BuildingDrawData CreateDrawData(string meshPath, bool mirror)
         {
             var empty = new LODEmptyMesh();
             ILODMesh[] lodLadder;
@@ -128,15 +155,15 @@ namespace SmartCutter
                     // FileMeshLoader.LoadSingleMeshFromFile — Shifter's helper
                     // only handles single-mesh FBXs (it calls Meshes.Single()),
                     // which fails on most DCC-exported FBXs.
-                    Mesh bodyMesh = MultiMeshLoader.LoadCombinedMeshFromFile(meshPath);
+                    Mesh bodyMesh = MultiMeshLoader.LoadCombinedMeshFromFile(meshPath, mirror);
                     var bodyRef = new TemporaryMeshReference(bodyMesh);
                     var bodyLod = new RuntimeLODMesh(new IMeshReference[] { bodyRef, bodyRef, bodyRef });
                     lodLadder = new ILODMesh[] { bodyLod, bodyLod, bodyLod };
-                    _logger.Info?.Log($"[SmartCutter] Loaded body mesh from {meshPath}");
+                    _logger.Info?.Log($"[SmartCutter] Loaded {(mirror ? "mirrored " : "")}body mesh from {meshPath}");
                 }
                 catch (Exception ex)
                 {
-                    _logger.Warning?.Log($"[SmartCutter] Failed to load body mesh from {meshPath}: {ex.Message}. Falling back to empty mesh.");
+                    _logger.Warning?.Log($"[SmartCutter] Failed to load {(mirror ? "mirrored " : "")}body mesh from {meshPath}: {ex.Message}. Falling back to empty mesh.");
                     lodLadder = new ILODMesh[] { empty, empty, empty };
                 }
             }
