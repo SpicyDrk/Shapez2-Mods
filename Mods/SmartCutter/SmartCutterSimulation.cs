@@ -7,38 +7,60 @@ using Game.Core.Simulation;
 namespace SmartCutter
 {
     /// <summary>
-    /// SmartCutter runtime simulation. Reads a wire-input shape signal,
-    /// interprets the wire shape's bottom layer as a 4-quadrant keep-mask, and
-    /// applies that mask to every layer of the incoming belt shape before
-    /// emitting it on the output belt.
+    /// SmartCutter runtime simulation. Reads a single-layer wire-input shape
+    /// signal, interprets its bottom layer as a 4-quadrant keep-mask, and
+    /// applies the mask uniformly to every layer of the incoming belt shape
+    /// before emitting it on the output belt.
     ///
-    /// Topology (mirrors DiagonalCutter / FourWaySplitter's 3-lane pattern):
+    /// Topology (3-lane, downstream-first):
     /// <code>
-    ///   InputLane      (3-arg, downstream = ProcessingLane, NO AcceptHook)
+    ///   InputLane      (3-arg, downstream = ProcessingLane, no AcceptHook)
     ///     │ chain-forward
     ///     ▼
-    ///   ProcessingLane (2-arg terminal; AcceptHook reads wire, applies mask,
-    ///                   HandOvers to OutputLane, then consumes the item)
-    ///     │ HandOverItem
+    ///   ProcessingLane (2-arg terminal, no AcceptHook — items land here and
+    ///                   wait for the next Update() tick to drain)
+    ///     │ DrainProcessingLane() in Update() — reads wire, masks, hands over
     ///     ▼
     ///   OutputLane     (2-arg terminal; game IItemProvider pulls)
     /// </code>
     ///
     /// <para>
-    /// <b>Empty-wire behaviour (Phase 1):</b> if the wire input has no signal
-    /// (null), or the signal is not a shape, or the wire's bottom layer has
-    /// no filled quadrants, the AcceptHook discards the input shape (output is
-    /// empty). Stall-on-empty-wire is Phase 2's job — for Phase 1 the SC tests
-    /// only assert basic single-layer mask behaviour, so an empty-mask result
-    /// here is acceptable.
+    /// <b>Why Update()-driven drain (not AcceptHook)?</b> AcceptHook only
+    /// fires once per item arrival (see SingleItemLane.HandOverItem). If the
+    /// hook returned without consuming under a transient stall condition
+    /// (empty wire / multi-layer wire / output-full), the item would land on
+    /// ProcessingLane and the hook would never re-fire — even after the
+    /// player fixed the condition. The Phase 2 UAT caught this as a
+    /// permanent-wedge bug. Polling in Update() retries every tick, so
+    /// stalls become transient.
     /// </para>
     ///
     /// <para>
-    /// <b>Unsupported shape inputs:</b> non-ShapeItem items (e.g. fluids) are
-    /// wedge-rejected — same backpressure pattern FourWaySplitter uses. Pins
-    /// and crystals are also wedge-rejected because the Unfold/Collapse
-    /// pipeline can't reassemble lone pin/crystal references into valid
-    /// shapes. Standard solid shapes (including painted) flow through normally.
+    /// <b>Stall conditions (transient — wedge until resolved):</b> the held
+    /// shape stays on ProcessingLane and the input belt backs up via
+    /// CanAcceptItem (HasItem → false). Each tick re-checks; flow resumes
+    /// as soon as the condition clears:
+    /// </para>
+    /// <list type="number">
+    ///   <item>Wire signal is empty / null / non-shape.</item>
+    ///   <item>Wire shape has more than one layer (invalid input per INTENT D3).</item>
+    ///   <item>OutputLane can't accept the masked item (output belt full).</item>
+    /// </list>
+    ///
+    /// <para>
+    /// <b>Permanent wedges (item sits visibly on ProcessingLane forever):</b>
+    /// non-ShapeItem inputs (e.g. fluid packages), and shapes containing
+    /// crystal ('c') or pin ('P') sub-parts. The Unfold/Collapse pipeline
+    /// can't reassemble lone crystal/pin references into valid ShapeIds, so
+    /// they're never drainable. The player sees the offending item parked on
+    /// the building and knows to remove it.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>Empty-mask result:</b> when the wire is valid but every quadrant is
+    /// empty (e.g. wire = `--------`), the mask keeps nothing. The
+    /// implementation consumes the input and emits no output —
+    /// interpretation is "cut everything away, valid result."
     /// </para>
     /// </summary>
     public class SmartCutterSimulation
@@ -48,6 +70,9 @@ namespace SmartCutter
         public readonly BeltLane ProcessingLane;
         public readonly BeltLane OutputLane;
         public readonly SignalConductorInput WireInputConductor;
+
+        private readonly IShapeRegistry _shapeRegistry;
+        private readonly ShapeOperationSmartCut _smartCut;
 
         /// <inheritdoc />
         public int NumItemReceivers => 1;
@@ -67,73 +92,20 @@ namespace SmartCutter
             IShapeRegistry shapeRegistry,
             ShapeOperationSmartCut smartCut) : base(simulationState)
         {
+            _shapeRegistry = shapeRegistry;
+            _smartCut = smartCut;
+
             // Downstream-first construction.
             OutputLane = new BeltLane(configuration.BeltSpeed, simulationState.OutputLaneState);
 
-            // Wire conductor initialized before the AcceptHook closure captures
-            // `this` — keeps the compiler's nullable analysis happy and ensures
-            // the field is observable from inside the hook with no race window.
             WireInputConductor = new SignalConductorInput(simulationState.WireInputConductorState);
 
-            // ProcessingLane is the transformation point — AcceptHook fires in
-            // chain-forward context as items arrive from InputLane.
+            // ProcessingLane: terminal lane (no NextLane, no AcceptHook).
+            // Items arrive via InputLane chain-forward, sit here until Update()
+            // drains them. CanAcceptItem (HasItem → false) provides backpressure.
             ProcessingLane = new BeltLane(configuration.BeltSpeed, simulationState.ProcessingLaneState);
-            ProcessingLane.AcceptHook = (IItemReceiver _, ref IBeltItem item, ref Ticks ticks) =>
-            {
-                // Reject non-shape items (e.g. fluid packages) via the
-                // wedge-rejection pattern — leave `item` untouched so it stays
-                // on this terminal lane. Backpressure propagates upstream
-                // naturally via CanAcceptItem.
-                if (item is not ShapeItem shapeItem)
-                {
-                    return;
-                }
 
-                // Reject crystals / pins for the same reason FourWaySplitter
-                // does — ShapeLogic.Unfold/Collapse can't reassemble lone
-                // crystal-or-pin references into valid ShapeIds, so a split
-                // would silently consume the input. Wedge so the upstream
-                // belt backs up visibly.
-                foreach (ShapeLayer layer in shapeItem.Definition.Layers)
-                {
-                    foreach (ShapePart part in layer.Parts)
-                    {
-                        if (part.IsEmpty) continue;
-                        char code = part.Shape.Code;
-                        if (code == 'c' || code == 'P')
-                        {
-                            return; // wedge-reject
-                        }
-                    }
-                }
-
-                // Read the most recent wire signal. NullSignal / non-shape
-                // signals produce a null wire shape → null mask result → drop
-                // the item (empty output). Phase 2 will stall here instead.
-                ISignal wireSignal = WireInputConductor.GetMostRecent();
-                ShapeDefinition? wireShape = wireSignal is BeltItemSignal beltSig && beltSig.Value is ShapeItem wireItem
-                    ? wireItem.Definition
-                    : null;
-
-                if (wireShape != null)
-                {
-                    ShapeCollapseResult result = smartCut.Execute(shapeItem.Definition, wireShape);
-                    if (result is { ResultsInEmptyShape: false, Shape: { } shape })
-                    {
-                        ShapeItem maskedItem = shapeRegistry.GetItem(shape);
-                        OutputLane.HandOverItem(maskedItem, ticks);
-                    }
-                    // else: mask kept nothing → no output emitted; the input
-                    // shape is consumed below.
-                }
-                // else: empty / non-shape wire signal → drop the input. Phase 2
-                // changes this to stall (don't consume).
-
-                // Consume from ProcessingLane.
-                item = null!;
-            };
-
-            // InputLane last — 3-arg ctor, downstream = ProcessingLane.
+            // InputLane: 3-arg ctor with ProcessingLane as downstream.
             InputLane = new BeltLane(configuration.BeltSpeed, simulationState.InputLaneState, ProcessingLane);
         }
 
@@ -164,10 +136,87 @@ namespace SmartCutter
         /// <inheritdoc />
         public void Update(Ticks startTicks, Ticks deltaTicks)
         {
-            // Downstream-first.
+            // Downstream-first lane updates.
             OutputLane.Update(deltaTicks);
+
+            // Drain any drainable item held on ProcessingLane before its own
+            // Update runs and before InputLane tries to push the next item in.
+            DrainProcessingLane(deltaTicks);
+
             ProcessingLane.Update(deltaTicks);
             InputLane.Update(deltaTicks);
+        }
+
+        /// <summary>
+        /// Per-tick drain. If ProcessingLane holds a drainable ShapeItem and
+        /// all transient conditions are satisfied (wire valid + single-layer,
+        /// output has room), apply the mask and hand over to OutputLane.
+        /// Otherwise leave the item — next tick retries.
+        /// </summary>
+        private void DrainProcessingLane(Ticks deltaTicks)
+        {
+            if (!ProcessingLane.HasItem)
+            {
+                return;
+            }
+
+            if (ProcessingLane.Item is not ShapeItem heldShape)
+            {
+                // Non-shape (e.g. fluid package) — permanent wedge.
+                return;
+            }
+
+            // Crystal/pin shapes are not drainable — the Unfold/Collapse
+            // pipeline can't reassemble lone crystal/pin references. Permanent
+            // wedge — leave the item on ProcessingLane for the player to see.
+            foreach (ShapeLayer layer in heldShape.Definition.Layers)
+            {
+                foreach (ShapePart part in layer.Parts)
+                {
+                    if (part.IsEmpty) continue;
+                    char code = part.Shape.Code;
+                    if (code == 'c' || code == 'P')
+                    {
+                        return;
+                    }
+                }
+            }
+
+            // Read the most recent wire signal.
+            ISignal wireSignal = WireInputConductor.GetMostRecent();
+            ShapeDefinition? wireShape = wireSignal is BeltItemSignal beltSig && beltSig.Value is ShapeItem wireItem
+                ? wireItem.Definition
+                : null;
+
+            // Transient stall #1: empty / null / non-shape wire signal.
+            if (wireShape == null)
+            {
+                return;
+            }
+
+            // Transient stall #2: multi-layer wire is invalid input (per INTENT D3).
+            if (wireShape.Layers.Length > 1)
+            {
+                return;
+            }
+
+            ShapeCollapseResult result = _smartCut.Execute(heldShape.Definition, wireShape);
+            if (result is { ResultsInEmptyShape: false, Shape: { } shape })
+            {
+                ShapeItem maskedItem = _shapeRegistry.GetItem(shape);
+
+                // Transient stall #3: output-full backpressure.
+                if (!OutputLane.CanAcceptItem(maskedItem))
+                {
+                    return;
+                }
+
+                OutputLane.HandOverItem(maskedItem, deltaTicks);
+            }
+            // else: valid wire mask kept nothing → empty result → consume
+            // the held shape, emit no output. See class docstring.
+
+            ProcessingLane.Clear();
         }
     }
 }

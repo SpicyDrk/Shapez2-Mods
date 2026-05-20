@@ -18,10 +18,28 @@ namespace SmartCutter
             SimulationSystemsDependencies dependencies,
             out SmartCutterConfiguration config)
         {
-            // Defaults copied from FourWaySplitter / DiagonalCutter for parity.
+            // Throughput target: one SmartCutter per lane = full belt
+            // throughput, never a bottleneck. Wire-routing complexity makes
+            // cutter-class throughput (3 per belt, vanilla half-destroyer
+            // style) too punishing — the player would need 3× as many wires.
+            //
+            // BeltSpeed = OneSecondPerTile matches the vanilla unbuffed belt
+            // (per BuffableBeltSpeed.cs, the default BaseSpeed is also
+            // OneSecondPerTile). The previous HalfSecondPerTile was literally
+            // twice the belt speed, which caused shapes to visibly accelerate
+            // as they entered the building's three lanes and decelerate again
+            // on exit. Matching the belt's speed makes the building's three
+            // lanes flow seamlessly with the surrounding belts.
+            //
+            // ProcessingDelay = HalfSecond (the minimum). Note: this field is
+            // currently vestigial — SmartCutterConfiguration exposes it on
+            // ISmartCutterConfiguration but SmartCutterSimulation reads only
+            // BeltSpeed when building its three BeltLane instances. Set to
+            // the minimum for hygiene; a future cleanup pass could remove
+            // the field entirely.
             config = new SmartCutterConfiguration(
                 BuffableBeltSpeed.DiscreteSpeed.OneSecondPerTile,
-                BuffableBeltDelay.DiscreteDuration.OnePointFiveSeconds);
+                BuffableBeltDelay.DiscreteDuration.HalfSecond);
 
             var smartCut = new ShapeOperationSmartCut(
                 dependencies.Mode.MaxShapeLayers,

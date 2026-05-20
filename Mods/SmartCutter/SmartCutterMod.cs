@@ -12,6 +12,8 @@ using ShapezShifter.Flow.Toolbar;
 using ShapezShifter.Kit;
 using ShapezShifter.Textures;
 using System;
+using System.IO;
+using UnityEngine;
 using ILogger = Core.Logging.ILogger;
 
 namespace SmartCutter
@@ -42,8 +44,12 @@ namespace SmartCutter
     [UsedImplicitly]
     public class SmartCutterMod : IMod
     {
+        private readonly ILogger _logger;
+
         public SmartCutterMod(ILogger logger)
         {
+            _logger = logger;
+
             // CS0618: BuildingDefinitionId/GroupId ctors are obsolete-flagged
             // for consumers of existing buildings; defining a new one requires
             // the string ctor — same rationale as FourWaySplitter.
@@ -59,6 +65,7 @@ namespace SmartCutter
                 ModDirectoryLocator.CreateLocator<SmartCutterMod>().SubLocator("Resources");
 
             string iconPath = modResourcesLocator.SubPath("SmartCutter_Icon.png");
+            string meshPath = ResolveBodyMeshPath(modResourcesLocator);
 
             IBuildingGroupBuilder smartCutterGroup = BuildingGroup.Create(groupId)
                 .WithTitle(titleId.T())
@@ -83,7 +90,7 @@ namespace SmartCutter
                 .WithConnectorData(connectorData)
                 .DynamicallyRendering<SmartCutterSimulationRenderer, SmartCutterSimulation,
                     ISmartCutterDrawData>(new SmartCutterDrawData())
-                .WithStaticDrawData(CreateDrawData())
+                .WithStaticDrawData(CreateDrawData(meshPath))
                 .WithoutSound()
                 .WithoutSimulationConfiguration()
                 .WithEfficiencyData(new BuildingEfficiencyData(2.0f, 1));
@@ -103,15 +110,37 @@ namespace SmartCutter
         }
 
         /// <summary>
-        /// Empty LOD ladder for the v1 building body — no visible in-world mesh.
-        /// Same pattern as FourWaySplitterMod.CreateDrawData. Toolbar icon and
-        /// placement connector arrows still render via the connector data + icon.
-        /// A real mesh is deferred to follow-up polish work.
+        /// Build the BuildingDrawData. If a body mesh exists at <paramref name="meshPath"/>,
+        /// load it via Shifter's Assimp-backed FileMeshLoader and use it across all
+        /// three LOD slots. Otherwise fall back to LODEmptyMesh × 3 and log a warning
+        /// so the mod still loads cleanly while art is being prepared.
         /// </summary>
-        private static BuildingDrawData CreateDrawData()
+        private BuildingDrawData CreateDrawData(string meshPath)
         {
             var empty = new LODEmptyMesh();
-            ILODMesh[] lodLadder = { empty, empty, empty };
+            ILODMesh[] lodLadder;
+
+            if (!string.IsNullOrEmpty(meshPath) && File.Exists(meshPath))
+            {
+                try
+                {
+                    Mesh bodyMesh = FileMeshLoader.LoadSingleMeshFromFile(meshPath);
+                    var bodyRef = new TemporaryMeshReference(bodyMesh);
+                    var bodyLod = new RuntimeLODMesh(new IMeshReference[] { bodyRef, bodyRef, bodyRef });
+                    lodLadder = new ILODMesh[] { bodyLod, bodyLod, bodyLod };
+                    _logger.Info?.Log($"[SmartCutter] Loaded body mesh from {meshPath}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warning?.Log($"[SmartCutter] Failed to load body mesh from {meshPath}: {ex.Message}. Falling back to empty mesh.");
+                    lodLadder = new ILODMesh[] { empty, empty, empty };
+                }
+            }
+            else
+            {
+                _logger.Warning?.Log($"[SmartCutter] No body mesh found at {meshPath}. Drop a .fbx or .obj at that path; falling back to empty mesh for now.");
+                lodLadder = new ILODMesh[] { empty, empty, empty };
+            }
 
             return new BuildingDrawData(
                 false,                                  // renderVoidBelow
@@ -126,6 +155,22 @@ namespace SmartCutter
                 ((IMeshReference)null!),                // secondary ref (runtime-nullable)
                 false                                   // trailing flag
             );
+        }
+
+        /// <summary>
+        /// Resolve the body mesh path. Prefers .fbx, falls back to .obj. Returns
+        /// the .fbx candidate path even when the file doesn't exist so the
+        /// warning log points the user at the expected location.
+        /// </summary>
+        private static string ResolveBodyMeshPath(ModFolderLocator modResourcesLocator)
+        {
+            string fbxPath = modResourcesLocator.SubPath("SmartCutter_Body.fbx");
+            if (File.Exists(fbxPath)) return fbxPath;
+
+            string objPath = modResourcesLocator.SubPath("SmartCutter_Body.obj");
+            if (File.Exists(objPath)) return objPath;
+
+            return fbxPath; // canonical expected path for the warning log
         }
 
         public void Dispose()
