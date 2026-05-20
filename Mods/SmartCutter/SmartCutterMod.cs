@@ -124,7 +124,11 @@ namespace SmartCutter
             {
                 try
                 {
-                    Mesh bodyMesh = FileMeshLoader.LoadSingleMeshFromFile(meshPath);
+                    // Use our multi-mesh-aware loader instead of
+                    // FileMeshLoader.LoadSingleMeshFromFile — Shifter's helper
+                    // only handles single-mesh FBXs (it calls Meshes.Single()),
+                    // which fails on most DCC-exported FBXs.
+                    Mesh bodyMesh = MultiMeshLoader.LoadCombinedMeshFromFile(meshPath);
                     var bodyRef = new TemporaryMeshReference(bodyMesh);
                     var bodyLod = new RuntimeLODMesh(new IMeshReference[] { bodyRef, bodyRef, bodyRef });
                     lodLadder = new ILODMesh[] { bodyLod, bodyLod, bodyLod };

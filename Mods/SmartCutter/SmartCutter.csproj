@@ -86,6 +86,13 @@
       <HintPath>$(SPZ2_PATH)\UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <!-- AssimpNet ships as a separate Workshop "library" mod (ID 3591335975),
+         loaded into the Unity runtime by Shifter on startup. We reference it
+         at compile-time via its sibling Workshop folder. -->
+    <Reference Include="AssimpNet">
+      <HintPath>$(SPZ2_SHIFTER)\..\3591335975\AssimpNet.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="UnityEngine.AssetBundleModule">
       <HintPath>$(SPZ2_PATH)\UnityEngine.AssetBundleModule.dll</HintPath>
       <Private>False</Private>
@@ -96,6 +103,10 @@
     </Reference>
     <Reference Include="Unity.Mathematics">
       <HintPath>$(SPZ2_PATH)\Unity.Mathematics.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Collections">
+      <HintPath>$(SPZ2_PATH)\Unity.Collections.dll</HintPath>
       <Private>False</Private>
     </Reference>
 
