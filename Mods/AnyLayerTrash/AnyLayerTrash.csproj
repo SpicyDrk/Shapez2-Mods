@@ -1,0 +1,131 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    AnyLayerTrash — replaces the vanilla Trash building with a 1x1xN pillar
+    that accepts belt input on every layer x every side. Phase P01 is the
+    scaffold + hijack rewirer; everything else stays vanilla (mesh, sound,
+    sim semantics, toolbar entry).
+
+    Lean csproj: no Unity rendering deps, no AssimpNet (no custom mesh load),
+    no Game.Core.Rendering. We only need Shifter hijack hooks + the building /
+    connector / footprint types from the game's data layer.
+
+    Inherits TargetFramework / LangVersion / Nullable from the workspace
+    Directory.Build.props.
+  -->
+
+  <PropertyGroup>
+    <OutputPath>$(ShapezModOutputRoot)$(MSBuildProjectName)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <!--
+      CS0436: Krafs.Publicizer and MonoMod.Utils both ship their own copy of
+      IgnoresAccessChecksToAttribute (both legitimately need it for cross-asm
+      access). Compiler picks the Publicizer one, which is correct here, but
+      emits a warning per AssemblyInfo line. Harmless.
+    -->
+    <NoWarn>$(NoWarn);CS0436</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="ShapezShifter">
+      <HintPath>$(SPZ2_SHIFTER)\ShapezShifter.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <Reference Include="SPZGameAssembly">
+      <HintPath>$(SPZ2_PATH)\SPZGameAssembly.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Core">
+      <HintPath>$(SPZ2_PATH)\Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <Reference Include="Game.Core">
+      <HintPath>$(SPZ2_PATH)\Game.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Modding">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Modding.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Coordinates">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Coordinates.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Model">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Model.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Layout.Model">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Layout.Model.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Layout">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Layout.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Simulation">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Simulation.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Simulation">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Simulation.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Rendering">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Rendering.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <Reference Include="Game.Content.Features">
+      <HintPath>$(SPZ2_PATH)\Game.Content.Features.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Content">
+      <HintPath>$(SPZ2_PATH)\Game.Content.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(SPZ2_PATH)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <PublicizerClearCacheOnClean>true</PublicizerClearCacheOnClean>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      MonoMod.RuntimeDetour 25.3.0 matches what Shifter ships. We pin the same
+      version so our compile-time IL targets the runtime types Shifter has
+      already loaded; at game launch the assembly resolver binds to Shifter's
+      copy (the .dll is NOT redeployed alongside our mod — PrivateAssets all).
+    -->
+    <PackageReference Include="MonoMod.RuntimeDetour" Version="25.3.0">
+      <PrivateAssets>all</PrivateAssets>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+
+    <PackageReference Include="Krafs.Publicizer" Version="2.3.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+
+    <Publicize Include="SPZGameAssembly" />
+    <Publicize Include="Game.Core.Map.Model" />
+    <Publicize Include="Game.Core.Map.Simulation" />
+    <Publicize Include="Game.Content.Features" />
+    <Publicize Include="Game.Content" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="manifest.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

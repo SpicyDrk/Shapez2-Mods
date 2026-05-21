@@ -1,0 +1,21 @@
+{
+  "Version": "0.1.0",
+  "Title": "Any Layer Trash",
+  "Description": "Replaces the vanilla Trash building with a 1x1xN pillar that accepts belt input on every layer x every side. No more dragging shapes down to layer 1 before trashing them. Hijacks the vanilla building so existing trash placements in saves inherit the new behavior automatically.",
+  "Author": "Brian McGrath",
+  "SavedModVersionCompabilityRangeWithSelf": "*",
+  "GameVersionSupportRange": "*",
+  "AffectsSaveGames": false,
+  "DisablesAchievements": false,
+  "Conflicts": [],
+  "Assemblies": [
+    "AnyLayerTrash.dll"
+  ],
+  "Dependencies": [
+    {
+      "ModId": "steam:3542611357",
+      "ModTitle": "Shapez Shifter",
+      "Version": "1.0.*"
+    }
+  ]
+}
