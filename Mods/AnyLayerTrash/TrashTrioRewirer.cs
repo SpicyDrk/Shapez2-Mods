@@ -94,20 +94,22 @@ namespace AnyLayerTrash
             ICollection<ISimulationSystem> simulationSystems,
             SimulationSystemsDependencies dependencies)
         {
-            simulationSystems.Add(new TrashTrioObserver(_state, _logger, side: "sim", isAuthoritative: true));
-            _logger.Info?.Log("[AnyLayerTrash:trio] registered observer on simulation side (authoritative).");
+            // RETIRED (PLAN-P01-007 Task 4). The sim-side observer wrote siblings
+            // into the simulator's downstream IMapLayout — the wrong world
+            // (invisible + non-colliding). Ghost-spawn now lives in
+            // TrashTrioMapSpawner, which mutates the authoritative IMapModel.
+            // We no longer register TrashTrioObserver; if we did, every REAL
+            // sibling the map spawner creates would be observed here and trigger
+            // a phantom sim-only spawn. ModifyGameBuildings still runs (variant
+            // capture). TrashTrioObserver.cs is kept as a reference catalogue.
+            _logger.Info?.Log("[AnyLayerTrash:trio] sim-side observer retired — ghost-spawn moved to map model (PLAN-P01-007).");
         }
 
         public void ModifyPredictionSystems(
             ICollection<ISimulationSystem> simulationSystems,
             PredictionSystemsDependencies dependencies)
         {
-            // Prediction observer is diagnostic-only — it re-fires the whole
-            // building set on every placement preview tick (Task 1 logs showed
-            // pred event count > sim event count). Owning the trio registry
-            // here would spawn duplicates on every cursor drag.
-            simulationSystems.Add(new TrashTrioObserver(_state, _logger, side: "pred", isAuthoritative: false));
-            _logger.Info?.Log("[AnyLayerTrash:trio] registered observer on prediction side (diagnostic only).");
+            // Retired alongside the sim-side observer — see ModifySimulationSystems.
         }
 
         public bool Equals(IRewirer other) => ReferenceEquals(this, other);

@@ -9,12 +9,11 @@ namespace AnyLayerTrash
 {
     /// <summary>
     /// Trio-tracking observer for the ghost-spawn approach (D5 in INTENT,
-    /// PLAN-P01-006). Task 2 extends the Task-1 diagnostic scaffold with the
-    /// per-(X,Y) trio registry, in-flight spawn/removal guards, and
-    /// FRESH / INFLIGHT / SAVE-LOAD classification — still bookkeeping only,
-    /// no map mutation. Tasks 3-4 add the spawn + symmetric-removal logic
-    /// once the registry is proven correct against real placement and
-    /// save-load events.
+    /// PLAN-P01-006). Built on a per-(X,Y) trio registry with in-flight
+    /// spawn/removal guards and FRESH / INFLIGHT / SAVE-LOAD classification.
+    /// Task 3 spawns the missing siblings on fresh placement
+    /// (<see cref="SpawnSiblings"/>); Task 4 mirrors removal so deleting any
+    /// trio member deletes the other two (<see cref="RemoveSiblings"/>).
     ///
     /// <para><b>Coordinate scheme (verified from Task 1 logs):</b> the layer
     /// step in the global tile Z is <see cref="LayerStep"/> = 20. UI layer 1
@@ -220,7 +219,12 @@ namespace AnyLayerTrash
                 return;
             }
 
+            // Classify: a removal we triggered ourselves (INFLIGHT-REM) must not
+            // cascade again — that's the recursion guard. A removal initiated by
+            // the player (or any other mechanism) is TRACK-REM and mirrors out to
+            // the rest of the trio.
             string classification;
+            bool shouldRemoveSiblings = false;
             if (_inFlightRemovals.Remove(anchor))
             {
                 classification = "INFLIGHT-REM";
@@ -228,23 +232,98 @@ namespace AnyLayerTrash
             else
             {
                 classification = "TRACK-REM";
+                shouldRemoveSiblings = true;
             }
 
-            if (_knownTrioLayers.TryGetValue((anchor.x, anchor.y), out var occupiedLayers))
-            {
-                occupiedLayers.Remove(layerOrd);
-                if (occupiedLayers.Count == 0)
-                {
-                    _knownTrioLayers.Remove((anchor.x, anchor.y));
-                }
-            }
+            // Drop this layer from the column registry first so the sibling
+            // snapshot taken inside RemoveSiblings excludes us.
+            _knownTrioLayers.TryGetValue((anchor.x, anchor.y), out var occupiedLayers);
+            occupiedLayers?.Remove(layerOrd);
 
-            int remaining = occupiedLayers?.Count ?? 0;
             string occupiedStr = occupiedLayers == null ? "{}" : FormatSet(occupiedLayers);
-
             _logger.Info?.Log(
                 $"[AnyLayerTrash:trio:{_side}] {classification} id={building.Definition.Id.Name} " +
-                $"anchor={anchor} layerOrd={layerOrd} remaining={remaining} occupied={occupiedStr}");
+                $"anchor={anchor} layerOrd={layerOrd} remaining={occupiedLayers?.Count ?? 0} " +
+                $"occupied={occupiedStr}");
+
+            if (shouldRemoveSiblings && occupiedLayers != null && occupiedLayers.Count > 0)
+            {
+                RemoveSiblings(anchor, occupiedLayers, layout);
+            }
+
+            // Column fully drained — drop the key so a future placement on this
+            // (x,y) classifies as FRESH again.
+            if (occupiedLayers != null && occupiedLayers.Count == 0)
+            {
+                _knownTrioLayers.Remove((anchor.x, anchor.y));
+            }
+        }
+
+        /// <summary>
+        /// Mirror of <see cref="SpawnSiblings"/> for Task 4: removes every
+        /// remaining vanilla trash in the trio at <paramref name="anchor"/>'s
+        /// (x,y) column, so deleting any one member deletes all three. Sibling
+        /// anchor GTCs are inserted into <see cref="_inFlightRemovals"/> BEFORE
+        /// <c>RemoveBuilding</c> so the re-entrant
+        /// <see cref="BuildingWillBeRemoved"/> callback (RemoveBuilding fires
+        /// <c>_OnBuildingRemoved</c> before it physically removes — verified in
+        /// <c>ExtendedMapLayout.RemoveBuilding</c>) classifies them INFLIGHT-REM
+        /// and does not cascade again.
+        ///
+        /// <para>Casts the layout to <see cref="IMapLayout"/>; if the cast fails
+        /// (e.g. the save-load reveal sweep's read-only layout) the cascade is
+        /// skipped and logged — consistent with <see cref="SpawnSiblings"/>.</para>
+        /// </summary>
+        private void RemoveSiblings(
+            GlobalTileCoordinate anchor,
+            HashSet<int> remainingLayers,
+            IReadOnlyMapLayout layout)
+        {
+            if (layout is not IMapLayout mapLayout)
+            {
+                _logger.Warning?.Log(
+                    $"[AnyLayerTrash:trio:sim] cannot remove siblings at {anchor} — " +
+                    $"layout is {layout.GetType().Name}, not IMapLayout.");
+                return;
+            }
+
+            // Snapshot the sibling ordinals: each RemoveBuilding fires a
+            // re-entrant INFLIGHT-REM callback that mutates remainingLayers, so we
+            // must not enumerate it live.
+            var siblingOrds = new List<int>(remainingLayers);
+
+            foreach (int siblingOrd in siblingOrds)
+            {
+                var siblingPos = new GlobalTileCoordinate(anchor.x, anchor.y, (short)(siblingOrd * LayerStep));
+                if (!layout.TryGetBuilding(in siblingPos, out var sibling) || !IsVanillaTrash(in sibling))
+                {
+                    // Already gone (or not ours) — keep the registry honest and
+                    // move on.
+                    remainingLayers.Remove(siblingOrd);
+                    continue;
+                }
+
+                // Mark BEFORE RemoveBuilding so the re-entrant callback sees us.
+                _inFlightRemovals.Add(siblingPos);
+
+                try
+                {
+                    mapLayout.RemoveBuilding(sibling);
+                    _logger.Info?.Log(
+                        $"[AnyLayerTrash:trio:sim] removed sibling at {siblingPos} layerOrd={siblingOrd}");
+                }
+                catch (System.Exception ex)
+                {
+                    // Drop the in-flight marker so a later attempt can retry, log,
+                    // and continue with the remaining layers — partial removal is
+                    // better than leaving the cascade half-done.
+                    _inFlightRemovals.Remove(siblingPos);
+                    _logger.Exception?.LogException(ex);
+                    _logger.Warning?.Log(
+                        $"[AnyLayerTrash:trio:sim] RemoveBuilding failed for sibling at " +
+                        $"{siblingPos} layerOrd={siblingOrd} — {ex.GetType().Name}: {ex.Message}");
+                }
+            }
         }
 
         private HashSet<int> TouchColumn(GlobalTileCoordinate anchor)

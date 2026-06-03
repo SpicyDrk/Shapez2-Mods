@@ -54,6 +54,10 @@
       <HintPath>$(SPZ2_PATH)\Game.Core.Coordinates.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Game.Core.Map">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Game.Core.Map.Model">
       <HintPath>$(SPZ2_PATH)\Game.Core.Map.Model.dll</HintPath>
       <Private>False</Private>
