@@ -123,6 +123,28 @@ namespace AnyLayerTrash
                 if (layers.ContainsKey(targetLayer)) continue;
 
                 var coordI = new IslandTileCoordinate(posI.x, posI.y, (short)targetLayer);
+
+                // Occupancy guard (save/reload robustness). A sibling may already
+                // exist on this layer — most importantly one deserialized from a
+                // save when a trio is reloaded, but also a manual trash. Never
+                // CreateBuilding over an occupied tile: register the existing
+                // trash and skip. The save loader itself does the same
+                // (IslandLayoutSerializer skips tiles where TryGetBuilding hits),
+                // so whichever trio member deserializes first triggers our fill,
+                // and the rest are detected here / skipped by the loader — the
+                // column converges to exactly three trashes regardless of load
+                // order, with no duplicate stack and no "already another building".
+                if (building.Island.TryGetBuilding(in coordI, out BuildingModel existing))
+                {
+                    if (IsVanillaTrash(existing))
+                    {
+                        layers[targetLayer] = existing.Id;
+                        _logger.Info?.Log(
+                            $"[AnyLayerTrash:map] layer={targetLayer} already occupied by trash id={existing.Id} — registered, skipped spawn");
+                    }
+                    continue;
+                }
+
                 var transformI = new IslandTileTransform(coordI, building.Transform_I.Rotation);
                 GlobalTileTransform transform = transformI.ToGlobal(building.Island);
 
@@ -165,28 +187,37 @@ namespace AnyLayerTrash
 
             _logger.Info?.Log($"[AnyLayerTrash:map] TRACK-REM layer={layer}");
 
-            // Cascade-delete the remaining trio members inline. Snapshot ids first:
-            // each DeleteBuilding re-enters OnBuildingRemoved (classified INFLIGHT)
-            // and mutates the column.
-            if (layers != null && layers.Count > 0)
+            // Cascade-delete the remaining trio members inline. Discover siblings
+            // by querying the ISLAND at the other layer indices rather than
+            // trusting the in-memory registry: a trio LOADED FROM A SAVE has no
+            // registry entry (it's cleared on every CurrentMap change), so a
+            // registry-only cascade would orphan the siblings after a reload.
+            // The island is the authoritative source. Each DeleteBuilding
+            // re-enters OnBuildingRemoved (classified INFLIGHT via the guard) and
+            // clears its own column entry, so we don't double-delete or recurse.
+            // Legacy single trashes (pre-mod saves) have no siblings — the
+            // lookups simply miss and nothing cascades, which is correct.
+            layers?.Clear();
+            for (int otherLayer = 0; otherLayer < LayerCount; otherLayer++)
             {
-                var siblingIds = new List<BuildingId>(layers.Values);
-                layers.Clear();
-                foreach (BuildingId id in siblingIds)
+                if (otherLayer == layer) continue;
+
+                var coordI = new IslandTileCoordinate(posI.x, posI.y, (short)otherLayer);
+                if (!building.Island.TryGetBuilding(in coordI, out BuildingModel sib)) continue;
+                if (!IsVanillaTrash(sib) || _inFlightDeletes.Contains(sib.Id)) continue;
+
+                _inFlightDeletes.Add(sib.Id);
+                try
                 {
-                    _inFlightDeletes.Add(id);
-                    try
-                    {
-                        _map.DeleteBuilding(in id);
-                        _logger.Info?.Log($"[AnyLayerTrash:map] cascade-deleted sibling id={id}");
-                    }
-                    catch (System.Exception ex)
-                    {
-                        _inFlightDeletes.Remove(id);
-                        _logger.Exception?.LogException(ex);
-                        _logger.Warning?.Log(
-                            $"[AnyLayerTrash:map] DeleteBuilding failed id={id} — {ex.GetType().Name}: {ex.Message}");
-                    }
+                    _map.DeleteBuilding(in sib.Id);
+                    _logger.Info?.Log($"[AnyLayerTrash:map] cascade-deleted sibling layer={otherLayer} id={sib.Id}");
+                }
+                catch (System.Exception ex)
+                {
+                    _inFlightDeletes.Remove(sib.Id);
+                    _logger.Exception?.LogException(ex);
+                    _logger.Warning?.Log(
+                        $"[AnyLayerTrash:map] DeleteBuilding failed layer={otherLayer} — {ex.GetType().Name}: {ex.Message}");
                 }
             }
 

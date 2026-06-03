@@ -1,0 +1,9 @@
+{
+  "solution": {
+    "path": "Shapez2Mods.sln",
+    "projects": [
+      "Mods\\AnyLayerTrash\\AnyLayerTrash.csproj",
+      "Tests\\AnyLayerTrash.Tests\\AnyLayerTrash.Tests.csproj"
+    ]
+  }
+}
