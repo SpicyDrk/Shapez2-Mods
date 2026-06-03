@@ -7,6 +7,13 @@ using ILogger = Core.Logging.ILogger;
 namespace AnyLayerTrash
 {
     /// <summary>
+    /// SUPERSEDED 2026-06-03 by <see cref="TrashActionInterceptor"/> (PLAN-P03-001)
+    /// and NO LONGER REGISTERED. It mutated the map outside any <c>PlayerAction</c>,
+    /// so trio create/delete were invisible to undo/redo and raced the engine's
+    /// batch-delete loop. Kept as a reference catalogue (map-event subscription +
+    /// island-relative spawn/cascade patterns). Do not re-register alongside the
+    /// action interceptor — that would double the trio.
+    ///
     /// MAP-MODEL ghost-spawn driver (PLAN-P01-007). Spawns/removes sibling
     /// trashes in the authoritative <c>IMapModel</c> so they render, collide and
     /// save — and the simulator observes them downstream (belts feed every layer).

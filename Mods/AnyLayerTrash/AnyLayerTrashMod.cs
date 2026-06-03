@@ -32,7 +32,7 @@ namespace AnyLayerTrash
     {
         private readonly ILogger _logger;
         private readonly RewirerHandle _trioHandle;
-        private readonly RewirerHandle _mapSpawnerHandle;
+        private readonly TrashActionInterceptor _actionInterceptor;
 
         public AnyLayerTrashMod(ILogger logger)
         {
@@ -55,23 +55,29 @@ namespace AnyLayerTrash
             // simulator's downstream layout.
             _trioHandle = GameRewirers.AddRewirer(trioRewirer);
 
-            // Map-model driver: acquires CurrentMap via Shifter's GameHelper on
-            // the per-tick hook and subscribes to its building add/remove events.
-            // Task 1 of PLAN-P01-007 is diagnostic only (logs island-relative +
-            // global coords); spawn/remove mutation lands in Tasks 2-3.
-            var mapSpawner = new TrashTrioMapSpawner(state, logger);
-            _mapSpawnerHandle = GameRewirers.AddRewirer(mapSpawner);
+            // PLAN-P03-001: the trio is created/deleted by EXPANDING the player's
+            // ActionModifyBuildings payload (TrashActionInterceptor), so undo/redo
+            // and batch/platform deletes treat all three as ONE undoable
+            // transaction. This SUPERSEDES the event-driven TrashTrioMapSpawner
+            // (PLAN-P01-007), which mutated the map outside any PlayerAction —
+            // invisible to undo and racing the engine's batch-delete loop.
+            // TrashTrioMapSpawner is no longer registered (kept as a reference
+            // catalogue). TrashTrioRewirer.ModifyGameBuildings still runs to feed
+            // the interceptor's trash-variant filter via the shared state.
+            _actionInterceptor = new TrashActionInterceptor(state, logger);
+            _actionInterceptor.Install();
 
             _logger.Info?.Log(
-                "[AnyLayerTrash] mod loaded — map-model ghost-spawn driver active (PLAN-P01-007). " +
-                "Placing a trash auto-spawns vanilla trashes on the other layers {0,1,2}; removing any " +
-                "removes the trio. Activity logs to [AnyLayerTrash:map]. Sim-side observer retired.");
+                "[AnyLayerTrash] mod loaded — trio rides the player action (PLAN-P03-001). " +
+                "Placing a trash expands the action to place vanilla trashes on the other layers {0,1,2}; " +
+                "deleting any expands it to delete all three — one undoable transaction (undo/redo + " +
+                "platform-delete safe). Activity logs to [AnyLayerTrash:action]. Event-driven map spawner retired.");
         }
 
         public void Dispose()
         {
             GameRewirers.RemoveRewirer(_trioHandle);
-            GameRewirers.RemoveRewirer(_mapSpawnerHandle);
+            _actionInterceptor.Dispose();
         }
     }
 }
