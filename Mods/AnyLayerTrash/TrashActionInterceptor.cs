@@ -57,7 +57,8 @@ namespace AnyLayerTrash
 
         private readonly TrashTrioState _state;
         private readonly ILogger _logger;
-        private Hook? _hook;
+        private Hook? _hookTryExecute;
+        private Hook? _hookIsPossible;
 
         // MonoMod detours must be static; a mod instantiates once, so a single
         // static back-reference to the live interceptor is sufficient.
@@ -76,21 +77,44 @@ namespace AnyLayerTrash
 
         public void Install()
         {
-            MethodInfo? target = typeof(PlayerAction).GetMethod(
+            _active = this;
+
+            MethodInfo? tryExecute = typeof(PlayerAction).GetMethod(
                 nameof(PlayerAction.TryExecute_INTERNAL), BindingFlags.Instance | BindingFlags.Public);
-            if (target == null)
+            if (tryExecute == null)
             {
                 _logger.Warning?.Log("[AnyLayerTrash:action] PlayerAction.TryExecute_INTERNAL not found — interceptor NOT installed.");
                 return;
             }
-
-            MethodInfo detour = typeof(TrashActionInterceptor).GetMethod(
+            MethodInfo tryExecuteDetour = typeof(TrashActionInterceptor).GetMethod(
                 nameof(TryExecuteDetour), BindingFlags.Static | BindingFlags.NonPublic)
                 ?? throw new InvalidOperationException("TryExecuteDetour not found.");
+            _hookTryExecute = new Hook(tryExecute, tryExecuteDetour);
 
-            _active = this;
-            _hook = new Hook(target, detour);
-            _logger.Info?.Log("[AnyLayerTrash:action] interceptor installed — PlayerAction.TryExecute_INTERNAL.");
+            // CanUndo/CanRedo (PlayerActionManager.cs:151/177) call IsPossible
+            // DIRECTLY on the stack-top action to gate the undo/redo input — outside
+            // TryExecute_INTERNAL. A reverse/redo trio action is force-placed on the
+            // upper layers, which IsPossible→CheckPlace rejects (tile-validity/notch
+            // are NOT bypassed by forceAllowPlace) → CanRedo false → the redo input
+            // is silently dropped. This postfix forces IsPossible TRUE for an
+            // all-forced trash action so the gate passes. Return-value ONLY — it
+            // never mutates Data, so the placement preview (a non-forced cursor
+            // action) is untouched and the attempt-#1 accumulation bug can't recur.
+            MethodInfo? isPossible = typeof(ActionModifyBuildings).GetMethod(
+                nameof(ActionModifyBuildings.IsPossible), BindingFlags.Instance | BindingFlags.Public);
+            if (isPossible != null)
+            {
+                MethodInfo isPossibleDetour = typeof(TrashActionInterceptor).GetMethod(
+                    nameof(IsPossibleDetour), BindingFlags.Static | BindingFlags.NonPublic)
+                    ?? throw new InvalidOperationException("IsPossibleDetour not found.");
+                _hookIsPossible = new Hook(isPossible, isPossibleDetour);
+            }
+            else
+            {
+                _logger.Warning?.Log("[AnyLayerTrash:action] ActionModifyBuildings.IsPossible not found — redo gate NOT patched.");
+            }
+
+            _logger.Info?.Log("[AnyLayerTrash:action] interceptor installed — TryExecute_INTERNAL + IsPossible (undo/redo gate).");
         }
 
         // Detour-with-orig: first param is the trampoline to the original method.
@@ -132,6 +156,24 @@ namespace AnyLayerTrash
             return orig(self, out reverseAction, interactionMode, skipChecks_INTERNAL);
         }
 
+        // Postfix on ActionModifyBuildings.IsPossible — see the Install note. Force
+        // TRUE only for an all-forced trash action (a reverse/redo trio) so the
+        // CanUndo/CanRedo gate accepts it. Return value only; never mutates Data.
+        // Cheap-checks first: bail on the common true result, then IsAllForced (no
+        // map lookups) before InvolvesTrash (does lookups).
+        private static bool IsPossibleDetour(
+            Func<ActionModifyBuildings, IInteractionMode, bool> orig,
+            ActionModifyBuildings self,
+            IInteractionMode interactionMode)
+        {
+            bool result = orig(self, interactionMode);
+            if (!result && _active != null && IsAllForced(self.Data) && _active.InvolvesTrash(self))
+            {
+                return true;
+            }
+            return result;
+        }
+
         private void Expand(ActionModifyBuildings action)
         {
             ModifyBuildingsPayload data = action.Data;
@@ -167,21 +209,16 @@ namespace AnyLayerTrash
             // --- Delete expansion: deleting a trash member pulls in the other
             //     layers' members (looked up live via the island). Dedup by
             //     BuildingId so a platform/area delete that already lists all
-            //     three adds nothing (and never re-lists an id). The result is
-            //     then reordered so each column's layer-0 trash deletes LAST. ---
-            List<DeleteBuildingPayload>? newDeleteList = null;
+            //     three adds nothing (and never re-lists an id). ---
+            List<DeleteBuildingPayload>? expandedDelete = null;
             IMapModel? map = action.Map;
-            if (map != null && deletes.Count > 0)
+            if (map != null)
             {
                 var deleteIds = new HashSet<BuildingId>();
                 foreach (DeleteBuildingPayload d in deletes) deleteIds.Add(d.BuildingId);
-
-                var working = new List<DeleteBuildingPayload>(deletes);
-                bool hasTrash = false;
                 foreach (DeleteBuildingPayload d in deletes)
                 {
                     if (!map.TryGetBuilding(in d.BuildingId, out BuildingModel b) || !IsTrashDef(b.Definition)) continue;
-                    hasTrash = true;
                     IslandTileCoordinate pos = b.Transform_I.Position;
                     for (int layer = 0; layer < LayerCount; layer++)
                     {
@@ -189,59 +226,20 @@ namespace AnyLayerTrash
                         var coordI = new IslandTileCoordinate(pos.x, pos.y, (short)layer);
                         if (!b.Island.TryGetBuilding(in coordI, out BuildingModel sib) || !IsTrashDef(sib.Definition)) continue;
                         if (!deleteIds.Add(sib.Id)) continue; // already slated for deletion
-                        working.Add(new DeleteBuildingPayload(sib.Id, forceAllowDelete: true));
+                        expandedDelete ??= new List<DeleteBuildingPayload>(deletes);
+                        expandedDelete.Add(new DeleteBuildingPayload(sib.Id, forceAllowDelete: true));
                     }
-                }
-
-                if (hasTrash)
-                {
-                    // Render void-tile fix: delete each column's layer-0 (z==0)
-                    // trash LAST. MapPlayingfieldVoidTileTracker.UnregisterBuilding
-                    // (line 57/73) removes the island's ChunkCache entry the moment
-                    // its z==0 void-tile set empties; only the z==0 member of a
-                    // stacked trio contributes a tile, so deleting it first removes
-                    // the entry while z>0 trashes (also RenderVoidBelow) remain — and
-                    // their UnregisterBuilding then throws "Entry not found in cache".
-                    // That throw aborts ExecuteInternal before it builds the reverse
-                    // action (line 193) → undo "works" visually but redo is dead.
-                    // Deleting z>0 first keeps the entry alive until the final z==0
-                    // unregister, after which no RenderVoidBelow trash remains. Even
-                    // when the action already lists the full trio (platform delete,
-                    // undo-of-place reverse), we reorder so the loop never throws.
-                    newDeleteList = OrderTrashLayerZeroLast(map, working);
                 }
             }
 
-            if (expandedPlace == null && newDeleteList == null) return; // not a trash action
+            if (expandedPlace == null && expandedDelete == null) return; // not a trash action
 
             IReadOnlyList<PlaceBuildingPayload> newPlace = expandedPlace ?? places;
-            IReadOnlyList<DeleteBuildingPayload> newDelete = newDeleteList ?? deletes;
+            IReadOnlyList<DeleteBuildingPayload> newDelete = expandedDelete ?? deletes;
             action.Data = new ModifyBuildingsPayload(newPlace, newDelete, data.BlueprintCurrencyModification);
             _logger.Info?.Log(
                 $"[AnyLayerTrash:action] expanded trio at execute: place {places.Count}->{newPlace.Count}, " +
                 $"delete {deletes.Count}->{newDelete.Count}.");
-        }
-
-        // Stable-partition the delete list so layer-0 (z==0) trash members are
-        // deleted after everything else — see the render void-tile note in Expand.
-        private List<DeleteBuildingPayload> OrderTrashLayerZeroLast(IMapModel map, List<DeleteBuildingPayload> items)
-        {
-            var head = new List<DeleteBuildingPayload>(items.Count);
-            List<DeleteBuildingPayload>? tail = null;
-            foreach (DeleteBuildingPayload d in items)
-            {
-                if (map.TryGetBuilding(in d.BuildingId, out BuildingModel b)
-                    && IsTrashDef(b.Definition) && b.Transform_I.Position.z == 0)
-                {
-                    (tail ??= new List<DeleteBuildingPayload>()).Add(d);
-                }
-                else
-                {
-                    head.Add(d);
-                }
-            }
-            if (tail != null) head.AddRange(tail);
-            return head;
         }
 
         // Does this action place or delete any vanilla trash? Cheap pre-scan that
@@ -288,8 +286,10 @@ namespace AnyLayerTrash
 
         public void Dispose()
         {
-            _hook?.Dispose();
-            _hook = null;
+            _hookIsPossible?.Dispose();
+            _hookIsPossible = null;
+            _hookTryExecute?.Dispose();
+            _hookTryExecute = null;
             if (ReferenceEquals(_active, this)) _active = null;
         }
     }
