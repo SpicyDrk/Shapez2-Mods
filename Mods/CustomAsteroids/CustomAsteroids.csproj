@@ -1,0 +1,146 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    CustomAsteroids — sandbox/creative mod that injects custom-shape MINEABLE
+    asteroids onto the space map. The player authors a shape via shape code
+    (Phase 2 UI); a vanilla extractor over the placed asteroid outputs that
+    exact shape.
+
+    Phase P01 is a feasibility spike + scaffold: prove a mod can inject a
+    ShapeMapResourceSource (custom hardcoded shape) into the live space-map
+    GameResourcesMap and have a vanilla extractor mine it. No UI yet.
+
+    Reference set mirrors AnyLayerTrash (proven-good superset). The two
+    publicized assemblies matter most here:
+      - SPZGameAssembly       → GameResourcesMap / MapSuperChunk (the asteroid
+                                container has no public Add; publicizing exposes
+                                its private resource list for runtime injection)
+                                + ShapeMapResourceSource.
+      - Game.Content.Features → IShapeDefinitionFactory / ShapeDefinition
+                                (shape-code parse → the model the patch wants).
+
+    Inherits TargetFramework (netstandard2.1) / LangVersion (9) / Nullable from
+    the workspace Directory.Build.props.
+  -->
+
+  <PropertyGroup>
+    <OutputPath>$(ShapezModOutputRoot)$(MSBuildProjectName)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <!--
+      CS0436: Krafs.Publicizer and MonoMod.Utils both ship their own copy of
+      IgnoresAccessChecksToAttribute. Compiler picks the Publicizer one (correct
+      here) but warns per AssemblyInfo line. Harmless.
+    -->
+    <NoWarn>$(NoWarn);CS0436</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="ShapezShifter">
+      <HintPath>$(SPZ2_SHIFTER)\ShapezShifter.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <Reference Include="SPZGameAssembly">
+      <HintPath>$(SPZ2_PATH)\SPZGameAssembly.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Core">
+      <HintPath>$(SPZ2_PATH)\Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <Reference Include="Game.Core">
+      <HintPath>$(SPZ2_PATH)\Game.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Modding">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Modding.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Coordinates">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Coordinates.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Model">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Model.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Layout.Model">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Layout.Model.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Layout">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Layout.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Map.Simulation">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Map.Simulation.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Simulation">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Simulation.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Core.Rendering">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Rendering.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <Reference Include="Game.Content.Features">
+      <HintPath>$(SPZ2_PATH)\Game.Content.Features.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Game.Content">
+      <HintPath>$(SPZ2_PATH)\Game.Content.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(SPZ2_PATH)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <!-- Legacy Input (UnityEngine.Input.GetKeyDown) for the F8 debug inject hotkey. -->
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(SPZ2_PATH)\UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <PublicizerClearCacheOnClean>true</PublicizerClearCacheOnClean>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      MonoMod.RuntimeDetour 25.3.0 matches what Shifter ships. Pinned so our
+      compile-time IL targets the runtime types Shifter has already loaded; at
+      launch the resolver binds to Shifter's copy (not redeployed — PrivateAssets
+      all). Kept available for the Phase-1 spike's map/factory resolution hook.
+    -->
+    <PackageReference Include="MonoMod.RuntimeDetour" Version="25.3.0">
+      <PrivateAssets>all</PrivateAssets>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+
+    <PackageReference Include="Krafs.Publicizer" Version="2.3.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+
+    <Publicize Include="SPZGameAssembly" />
+    <Publicize Include="Game.Content.Features" />
+    <Publicize Include="Game.Content" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="manifest.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

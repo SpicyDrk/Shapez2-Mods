@@ -1,0 +1,21 @@
+{
+  "Version": "0.1.0",
+  "Title": "Custom Asteroids",
+  "Description": "Sandbox/creative tool: place mineable asteroids of any shape you author via a shape code. A vanilla extractor over a placed asteroid outputs exactly the authored shape (colors, crystals, pins, multi-layer all supported). Phase 1 is a feasibility spike — inject and mine a hardcoded custom-shape asteroid.",
+  "Author": "Brian McGrath",
+  "SavedModVersionCompabilityRangeWithSelf": "*",
+  "GameVersionSupportRange": "*",
+  "AffectsSaveGames": true,
+  "DisablesAchievements": false,
+  "Conflicts": [],
+  "Assemblies": [
+    "CustomAsteroids.dll"
+  ],
+  "Dependencies": [
+    {
+      "ModId": "steam:3542611357",
+      "ModTitle": "Shapez Shifter",
+      "Version": "1.0.*"
+    }
+  ]
+}

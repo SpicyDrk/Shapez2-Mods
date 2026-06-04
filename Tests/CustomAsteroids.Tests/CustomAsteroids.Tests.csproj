@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Plain console "smoke check" app. Same pattern as Tests/AnyLayerTrash.Tests/.
+      Run via: `dotnet run` inside Tests/CustomAsteroids.Tests/
+
+      CustomAsteroids Phase 1 has no pure helper code to unit-test (the spike is
+      engine integration verified in-game / HITL), so this project ships
+      manifest-shape tests only.
+    -->
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+
+    <!-- Not a Shapez mod: skip the env-var build-gate check and default output. -->
+    <IsShapezMod>false</IsShapezMod>
+
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>
