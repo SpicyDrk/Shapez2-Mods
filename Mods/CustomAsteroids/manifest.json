@@ -2,11 +2,11 @@
   "Version": "0.1.0",
   "Title": "Custom Asteroids",
   "Description": "Sandbox/creative tool: place mineable asteroids of any shape you author via a shape code. Pick 'Custom Asteroid' in the space-map build menu, type a shape code, then click to drop a 9x4 patch or DRAG A BOX to size it; an extractor over it mines exactly the authored shape (colors, crystals, pins, multi-layer). 'Remove Custom Asteroid' deletes one; Ctrl+Z / Ctrl+Y undo/redo; placements persist across save/reload. KNOWN LIMITATION: deleting a custom asteroid that still has an extractor on it, or building an extractor past the patch edge, leaves the extractor over no resource and logs harmless engine errors (mining of valid setups is unaffected) — remove the extractor first.",
-  "Author": "Brian McGrath",
+  "Author": "Dork",
   "SavedModVersionCompabilityRangeWithSelf": "*",
   "GameVersionSupportRange": "*",
   "AffectsSaveGames": true,
-  "DisablesAchievements": false,
+  "DisablesAchievements": true,
   "Conflicts": [],
   "Assemblies": [
     "CustomAsteroids.dll"

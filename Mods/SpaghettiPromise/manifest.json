@@ -2,7 +2,7 @@
   "Version": "0.1.0",
   "Title": "Spaghetti Promise",
   "Description": "Flips the game's opening 'I will not build any spaghetti factories' contract into 'I will build only spaghetti factories.' A translations override — no gameplay changes.",
-  "Author": "Brian McGrath",
+  "Author": "Dork",
   "SavedModVersionCompabilityRangeWithSelf": "*",
   "GameVersionSupportRange": "*",
   "AffectsSaveGames": false,

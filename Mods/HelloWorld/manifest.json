@@ -2,7 +2,7 @@
   "Version": "0.1.0",
   "Title": "Hello World",
   "Description": "Minimal Shapez 2 mod proving the Shapez2-Mods workspace build pipeline. Does nothing observable in-game.",
-  "Author": "Brian McGrath",
+  "Author": "Dork",
   "SavedModVersionCompabilityRangeWithSelf": "*",
   "GameVersionSupportRange": "*",
   "AffectsSaveGames": false,

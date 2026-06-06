@@ -2,7 +2,7 @@
   "Version": "0.1.0",
   "Title": "Smart Cutter",
   "Description": "A 1x1 wire-controlled cutter. The wire-input shape acts as a keep-mask: filled quadrants of the wire shape are kept on the input shape, empty quadrants are cut away. Phase P01: single-layer mask only. P02 will add multi-layer flatten + stall-on-empty-wire behaviour.",
-  "Author": "Brian McGrath",
+  "Author": "Dork",
   "SavedModVersionCompabilityRangeWithSelf": "*",
   "GameVersionSupportRange": "*",
   "AffectsSaveGames": false,
