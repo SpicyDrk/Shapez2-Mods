@@ -3,9 +3,9 @@
   <PropertyGroup>
     <!--
       Plain console "smoke check" app. Same pattern as Tests/AnyLayerTrash.Tests/.
-      Run via: `dotnet run` inside Tests/CustomAsteroids.Tests/
+      Run via: `dotnet run` inside Tests/AsteroidMaker.Tests/
 
-      CustomAsteroids Phase 1 has no pure helper code to unit-test (the spike is
+      AsteroidMaker Phase 1 has no pure helper code to unit-test (the spike is
       engine integration verified in-game / HITL), so this project ships
       manifest-shape tests only.
     -->

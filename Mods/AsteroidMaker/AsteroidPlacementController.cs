@@ -7,7 +7,7 @@ using ShapezShifter.Kit;
 using UnityEngine;
 using ILogger = Core.Logging.ILogger;
 
-namespace CustomAsteroids
+namespace AsteroidMaker
 {
     /// <summary>
     /// PLAN-P02-001 Task 3 + PLAN-P03-001 Task 2 + PLAN-P04-001 Task 1 — the cursor for both
@@ -16,14 +16,14 @@ namespace CustomAsteroids
     /// <c>GameHelper.Core.Viewport</c>); Esc / right-click cancels.
     ///
     /// <list type="bullet">
-    ///   <item><b>Placement</b> (<see cref="CustomAsteroidUiState.PlacementArmed"/>, set by the
+    ///   <item><b>Placement</b> (<see cref="AsteroidUiState.PlacementArmed"/>, set by the
     ///   authoring dialog): a plain click drops the default fixed patch via
-    ///   <see cref="CustomAsteroidPlacer.TryInjectAt"/>; <b>dragging a box</b> (mouse-down → drag →
+    ///   <see cref="AsteroidPlacer.TryInjectAt"/>; <b>dragging a box</b> (mouse-down → drag →
     ///   release) places one multi-tile source spanning the dragged rectangle via
-    ///   <see cref="CustomAsteroidPlacer.TryAddSource"/> (SC-10). Either way it's recorded for
+    ///   <see cref="AsteroidPlacer.TryAddSource"/> (SC-10). Either way it's recorded for
     ///   persistence and pushed onto the undo stack.</item>
-    ///   <item><b>Delete</b> (<see cref="CustomAsteroidUiState.DeleteArmed"/>, set by the
-    ///   "Remove Custom Asteroid" entry): left-click on a tile covered by one of OUR placed
+    ///   <item><b>Delete</b> (<see cref="AsteroidUiState.DeleteArmed"/>, set by the
+    ///   "Remove Asteroid" entry): left-click on a tile covered by one of OUR placed
     ///   asteroids removes it (registry + live chunk); vanilla patches are never touched.</item>
     /// </list>
     ///
@@ -32,14 +32,14 @@ namespace CustomAsteroids
     /// offset-agnostic — they operate on the recorded footprint — so box-selected patches save,
     /// reload, undo and delete exactly like the default ones.</para>
     /// </summary>
-    internal sealed class CustomAsteroidPlacementController : ITickRewirer
+    internal sealed class AsteroidPlacementController : ITickRewirer
     {
         // Defensive per-axis cap on a dragged footprint (in chunks). The real bound is the
         // super-chunk clip in TryAddSource; this just stops a runaway drag from building a huge
         // offset list. A full space belt (9×4) is far under this.
         private const int MaxDragDim = 64;
 
-        private readonly CustomAsteroidUiState _ui;
+        private readonly AsteroidUiState _ui;
         private readonly ILogger _logger;
 
         private int _lastFrame = -1;
@@ -52,7 +52,7 @@ namespace CustomAsteroids
         private bool _dragging;
         private GlobalChunkCoordinate _dragAnchor;
 
-        public CustomAsteroidPlacementController(CustomAsteroidUiState ui, ILogger logger)
+        public AsteroidPlacementController(AsteroidUiState ui, ILogger logger)
         {
             _ui = ui;
             _logger = logger;
@@ -81,7 +81,7 @@ namespace CustomAsteroids
             }
             catch (Exception ex)
             {
-                _logger.Error?.Log($"[CustomAsteroids:place] tick threw (non-fatal); disarming: {ex}");
+                _logger.Error?.Log($"[AsteroidMaker:place] tick threw (non-fatal); disarming: {ex}");
                 _ui.PlacementArmed = false;
                 _ui.DeleteArmed = false;
                 _dragging = false;
@@ -94,7 +94,7 @@ namespace CustomAsteroids
             {
                 _loggedArm = true;
                 _logger.Info?.Log(
-                    $"[CustomAsteroids:place] placement armed for '{_ui.AuthoredCode}'. " +
+                    $"[AsteroidMaker:place] placement armed for '{_ui.AuthoredCode}'. " +
                     "Click to place the default patch, or drag a box to size it; Esc / right-click to cancel.");
             }
 
@@ -103,7 +103,7 @@ namespace CustomAsteroids
                 _ui.PlacementArmed = false;
                 _dragging = false;
                 _ui.DragPreviewActive = false;
-                _logger.Info?.Log("[CustomAsteroids:place] placement cancelled.");
+                _logger.Info?.Log("[AsteroidMaker:place] placement cancelled.");
                 return;
             }
 
@@ -116,7 +116,7 @@ namespace CustomAsteroids
             {
                 _dragging = true;
                 _dragAnchor = gc;
-                _logger.Info?.Log($"[CustomAsteroids:place] drag start at {gc} (SC {gc.To_SC()}).");
+                _logger.Info?.Log($"[AsteroidMaker:place] drag start at {gc} (SC {gc.To_SC()}).");
             }
 
             // While dragging, publish the live box (anchor → current hover) so the preview drawer can
@@ -146,14 +146,14 @@ namespace CustomAsteroids
             {
                 _loggedArm = true;
                 _logger.Info?.Log(
-                    "[CustomAsteroids:delete] delete armed. Left-click one of your custom asteroids to remove it; " +
+                    "[AsteroidMaker:delete] delete armed. Left-click one of your custom asteroids to remove it; " +
                     "Esc / right-click to cancel.");
             }
 
             if (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1))
             {
                 _ui.DeleteArmed = false;
-                _logger.Info?.Log("[CustomAsteroids:delete] delete cancelled.");
+                _logger.Info?.Log("[AsteroidMaker:delete] delete cancelled.");
                 return;
             }
 
@@ -178,23 +178,23 @@ namespace CustomAsteroids
             {
                 _haveHover = true;
                 _lastHover = gc;
-                _logger.Info?.Log($"[CustomAsteroids:{tag}] hovering GC {gc} (SC {gc.To_SC()}).");
+                _logger.Info?.Log($"[AsteroidMaker:{tag}] hovering GC {gc} (SC {gc.To_SC()}).");
             }
             return true;
         }
 
         /// <summary>
         /// Place the authored asteroid. A plain click (<paramref name="release"/> == <paramref
-        /// name="anchor"/>) drops the default fixed patch via <see cref="CustomAsteroidPlacer.TryInjectAt"/>;
+        /// name="anchor"/>) drops the default fixed patch via <see cref="AsteroidPlacer.TryInjectAt"/>;
         /// a drag builds a rectangle of offsets spanning anchor→release and places one multi-tile source
-        /// via <see cref="CustomAsteroidPlacer.TryAddSource"/> (which clips to the anchor's super-chunk +
+        /// via <see cref="AsteroidPlacer.TryAddSource"/> (which clips to the anchor's super-chunk +
         /// free tiles). Either way the placement is recorded for persistence + pushed onto the undo stack.
         /// </summary>
         private void PlaceFootprint(GlobalChunkCoordinate anchor, GlobalChunkCoordinate release)
         {
             if (_ui.ResourcesMap is not GameResourcesMap grm)
             {
-                _logger.Error?.Log("[CustomAsteroids:place] no GameResourcesMap captured; cannot place. Disarming.");
+                _logger.Error?.Log("[AsteroidMaker:place] no GameResourcesMap captured; cannot place. Disarming.");
                 _ui.PlacementArmed = false;
                 return;
             }
@@ -208,7 +208,7 @@ namespace CustomAsteroids
             // instance, so resolve at the moment of use).
             if (!CanonicalShapeResolver.TryResolve(_ui.AuthoredCode, out ShapeDefinition shape, out string shapeDiag))
             {
-                _logger.Error?.Log($"[CustomAsteroids:place] could not resolve '{_ui.AuthoredCode}' at place-time ({shapeDiag}). Disarming.");
+                _logger.Error?.Log($"[AsteroidMaker:place] could not resolve '{_ui.AuthoredCode}' at place-time ({shapeDiag}). Disarming.");
                 _ui.PlacementArmed = false;
                 return;
             }
@@ -223,12 +223,12 @@ namespace CustomAsteroids
             {
                 List<ChunkVector> rect = BuildRectOffsets(anchor, release, MaxDragDim, out int spanX, out int spanY);
                 footprintDesc = $"box {spanX}×{spanY}";
-                ok = CustomAsteroidPlacer.TryAddSource(grm, shape, anchor, rect, _logger, out injDiag, out placedOffsets);
+                ok = AsteroidPlacer.TryAddSource(grm, shape, anchor, rect, _logger, out injDiag, out placedOffsets);
             }
             else
             {
                 footprintDesc = "default patch";
-                ok = CustomAsteroidPlacer.TryInjectAt(grm, shape, anchor, _logger, out injDiag, out placedOffsets);
+                ok = AsteroidPlacer.TryInjectAt(grm, shape, anchor, _logger, out injDiag, out placedOffsets);
             }
 
             if (ok)
@@ -240,13 +240,13 @@ namespace CustomAsteroids
                 PlacedAsteroidRecord? placed = _ui.Persistence?.RecordPlacement(anchor, placedOffsets, _ui.AuthoredCode ?? string.Empty);
                 if (placed != null) _ui.Undo?.RecordPlace(placed);
                 _logger.Info?.Log(
-                    $"[CustomAsteroids:place] PLACED '{_ui.AuthoredCode}' ({shapeDiag}) as {footprintDesc} at {anchor} " +
+                    $"[AsteroidMaker:place] PLACED '{_ui.AuthoredCode}' ({shapeDiag}) as {footprintDesc} at {anchor} " +
                     $"(world≈{anchor.ToCenter_W()}). {injDiag}. Build a platform + extractor over it to mine the shape.");
             }
             else
             {
                 _logger.Warning?.Log(
-                    $"[CustomAsteroids:place] placement ({footprintDesc}) at {anchor} failed ({injDiag}); still armed — try again.");
+                    $"[AsteroidMaker:place] placement ({footprintDesc}) at {anchor} failed ({injDiag}); still armed — try again.");
             }
         }
 
@@ -279,7 +279,7 @@ namespace CustomAsteroids
         {
             if (_ui.ResourcesMap is not GameResourcesMap grm)
             {
-                _logger.Error?.Log("[CustomAsteroids:delete] no GameResourcesMap captured; cannot delete. Disarming.");
+                _logger.Error?.Log("[AsteroidMaker:delete] no GameResourcesMap captured; cannot delete. Disarming.");
                 _ui.DeleteArmed = false;
                 return;
             }
@@ -291,25 +291,25 @@ namespace CustomAsteroids
             if (record == null)
             {
                 _logger.Warning?.Log(
-                    $"[CustomAsteroids:delete] {gc} isn't one of your custom asteroids — nothing removed. Still armed.");
+                    $"[AsteroidMaker:delete] {gc} isn't one of your custom asteroids — nothing removed. Still armed.");
                 return;
             }
 
-            bool removed = CustomAsteroidPlacer.TryRemoveAt(grm, gc, _logger, out string diag);
+            bool removed = AsteroidPlacer.TryRemoveAt(grm, gc, _logger, out string diag);
             _ui.DeleteArmed = false;
             // Push onto the undo stack so Ctrl+Z can restore this deleted asteroid.
             _ui.Undo?.RecordDelete(record);
             if (removed)
             {
                 _logger.Info?.Log(
-                    $"[CustomAsteroids:delete] REMOVED custom asteroid '{record.Code}' covering {gc} ({diag}). " +
+                    $"[AsteroidMaker:delete] REMOVED custom asteroid '{record.Code}' covering {gc} ({diag}). " +
                     "An extractor over it will stop producing.");
             }
             else
             {
                 // Registry said ours but the live source was already gone — registry now consistent.
                 _logger.Warning?.Log(
-                    $"[CustomAsteroids:delete] registry record for {gc} removed, but no live source was found ({diag}).");
+                    $"[AsteroidMaker:delete] registry record for {gc} removed, but no live source was found ({diag}).");
             }
         }
 

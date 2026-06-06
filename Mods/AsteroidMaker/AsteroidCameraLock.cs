@@ -3,7 +3,7 @@ using System.Reflection;
 using MonoMod.RuntimeDetour;
 using ILogger = Core.Logging.ILogger;
 
-namespace CustomAsteroids
+namespace AsteroidMaker
 {
     /// <summary>
     /// PLAN-P04-001 (UAT fix) — locks the space-map mouse-drag pan while a custom-asteroid
@@ -13,20 +13,20 @@ namespace CustomAsteroids
     /// <para><b>Why.</b> Vanilla platform placement owns the left-drag: its placement tracker
     /// consumes the <c>camera.mouse-drag-modifier</c> keybinding each frame, so
     /// <c>CameraController.Update_MouseMovement</c> sees it already consumed and skips the pan. Our
-    /// custom <see cref="CustomAsteroidPlacementInitiator"/> ends immediately (it just fires a
+    /// custom <see cref="AsteroidPlacementInitiator"/> ends immediately (it just fires a
     /// callback), so the engine never runs a tracker for us and the drag pans the camera —
     /// making a reliable box-select impossible. Rather than reproduce the input-context plumbing,
     /// we prefix-hook the single mouse-drag-pan method and no-op it while
-    /// <see cref="CustomAsteroidUiState.PlacementArmed"/> is set. Keyboard / edge-scroll / zoom
+    /// <see cref="AsteroidUiState.PlacementArmed"/> is set. Keyboard / edge-scroll / zoom
     /// panning (separate methods) are untouched, matching how vanilla placement leaves those live.</para>
     /// </summary>
-    internal sealed class CustomAsteroidCameraLock : IDisposable
+    internal sealed class AsteroidCameraLock : IDisposable
     {
         private readonly Hook _hook;
-        private readonly CustomAsteroidUiState _ui;
+        private readonly AsteroidUiState _ui;
         private readonly ILogger _logger;
 
-        public CustomAsteroidCameraLock(CustomAsteroidUiState ui, ILogger logger)
+        public AsteroidCameraLock(AsteroidUiState ui, ILogger logger)
         {
             _ui = ui;
             _logger = logger;
@@ -35,12 +35,12 @@ namespace CustomAsteroids
                 "Update_MouseMovement",
                 BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
                 ?? throw new InvalidOperationException(
-                    "CustomAsteroids: failed to find CameraController.Update_MouseMovement(InputDownstreamContext).");
+                    "AsteroidMaker: failed to find CameraController.Update_MouseMovement(InputDownstreamContext).");
 
             PanDelegate detour = PanPrefix;
             _hook = new Hook(method, detour);
 
-            logger.Info?.Log("[CustomAsteroids:place] camera-pan lock installed (mouse-drag pan suppressed while placement is armed).");
+            logger.Info?.Log("[AsteroidMaker:place] camera-pan lock installed (mouse-drag pan suppressed while placement is armed).");
         }
 
         public void Dispose() => _hook.Dispose();

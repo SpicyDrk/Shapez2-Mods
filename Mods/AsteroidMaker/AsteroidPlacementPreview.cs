@@ -8,7 +8,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using ILogger = Core.Logging.ILogger;
 
-namespace CustomAsteroids
+namespace AsteroidMaker
 {
     /// <summary>
     /// PLAN-P04-001 (drag preview) — draws a translucent rectangle over the tiles a box-drag would
@@ -19,7 +19,7 @@ namespace CustomAsteroids
     /// (it carries the renderers + the in-game debug draw builder); an <c>ITickRewirer</c> has none.
     /// The map-draw pipeline calls <c>MapDrawer.Draw(FrameDrawOptionsNoLOD)</c> exactly once per frame,
     /// so we hook that non-generic seam: run the original map draw, then — only while a drag is live
-    /// (<see cref="CustomAsteroidUiState.DragPreviewActive"/>) — paint the box on top.</para>
+    /// (<see cref="AsteroidUiState.DragPreviewActive"/>) — paint the box on top.</para>
     ///
     /// <para><b>How it draws.</b> We mirror vanilla's own debug-chunk highlight
     /// (<c>DebugViewChunkIO</c>: <c>options.GetDebugDrawer().SolidPlane(chunk.ToCenter_W(), up, 20, color)</c>)
@@ -28,7 +28,7 @@ namespace CustomAsteroids
     /// thing is wrapped in try/catch so a preview hiccup can never break the map render; the placement
     /// itself is unaffected (the controller computes the real footprint independently at release).</para>
     /// </summary>
-    internal sealed class CustomAsteroidPlacementPreview : IDisposable
+    internal sealed class AsteroidPlacementPreview : IDisposable
     {
         // Match the controller's MaxDragDim so the preview can never iterate more tiles than a drag
         // could place (defensive cap; real drags are tiny — a full space belt is 9×4).
@@ -41,12 +41,12 @@ namespace CustomAsteroids
         // Translucent cyan fill — reads as a placement highlight without hiding the map underneath.
         private static readonly Color FillColor = new Color(0.28f, 0.72f, 1f, 0.35f);
 
-        private readonly CustomAsteroidUiState _ui;
+        private readonly AsteroidUiState _ui;
         private readonly ILogger _logger;
         private readonly Hook _hook;
         private bool _warned;
 
-        public CustomAsteroidPlacementPreview(CustomAsteroidUiState ui, ILogger logger)
+        public AsteroidPlacementPreview(AsteroidUiState ui, ILogger logger)
         {
             _ui = ui;
             _logger = logger;
@@ -58,13 +58,13 @@ namespace CustomAsteroids
                 types: new[] { typeof(FrameDrawOptionsNoLOD) },
                 modifiers: null)
                 ?? throw new InvalidOperationException(
-                    "CustomAsteroids: failed to find MapDrawer.Draw(FrameDrawOptionsNoLOD).");
+                    "AsteroidMaker: failed to find MapDrawer.Draw(FrameDrawOptionsNoLOD).");
 
             DrawDelegate detour = DrawPrefix;
             _hook = new Hook(method, detour);
 
             logger.Info?.Log(
-                "[CustomAsteroids:preview] drag-preview drawer installed (highlights the box footprint while dragging).");
+                "[AsteroidMaker:preview] drag-preview drawer installed (highlights the box footprint while dragging).");
         }
 
         public void Dispose() => _hook.Dispose();
@@ -94,7 +94,7 @@ namespace CustomAsteroids
                 if (!_warned)
                 {
                     _warned = true;
-                    _logger.Warning?.Log($"[CustomAsteroids:preview] drag-preview draw threw (non-fatal, suppressed): {ex}");
+                    _logger.Warning?.Log($"[AsteroidMaker:preview] drag-preview draw threw (non-fatal, suppressed): {ex}");
                 }
             }
         }

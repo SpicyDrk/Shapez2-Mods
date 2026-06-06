@@ -2,7 +2,7 @@ using System;
 using ShapezShifter.Kit;
 using ILogger = Core.Logging.ILogger;
 
-namespace CustomAsteroids
+namespace AsteroidMaker
 {
     /// <summary>
     /// Resolves a shape code into a <see cref="ShapeDefinition"/> via the CANONICAL

@@ -3,7 +3,7 @@ using Core.Events;
 using Game.Core.Coordinates;
 using ILogger = Core.Logging.ILogger;
 
-namespace CustomAsteroids
+namespace AsteroidMaker
 {
     /// <summary>
     /// PLAN-P02-001 Task 1 — a CUSTOM <see cref="IPlacementInitiator"/> that backs our
@@ -23,7 +23,7 @@ namespace CustomAsteroids
     /// same class backs both build-menu entries (place + remove): each is constructed with its own
     /// label + <see cref="Action"/> callback.</para>
     /// </summary>
-    internal sealed class CustomAsteroidPlacementInitiator : IPlacementInitiator
+    internal sealed class AsteroidPlacementInitiator : IPlacementInitiator
     {
         private readonly ILogger _logger;
         private readonly string _label;
@@ -36,7 +36,7 @@ namespace CustomAsteroids
 
         private bool _isPlacing;
 
-        public CustomAsteroidPlacementInitiator(ILogger logger, string label, Action onSelected)
+        public AsteroidPlacementInitiator(ILogger logger, string label, Action onSelected)
         {
             _logger = logger;
             _label = label;
@@ -61,7 +61,7 @@ namespace CustomAsteroids
 
         private void StartPlacement()
         {
-            _logger.Info?.Log($"[CustomAsteroids:ui] '{_label}' selected (RequestStartPlacement).");
+            _logger.Info?.Log($"[AsteroidMaker:ui] '{_label}' selected (RequestStartPlacement).");
             _isPlacing = true;
             _onStarts.Invoke();
 
@@ -71,7 +71,7 @@ namespace CustomAsteroids
             }
             catch (Exception ex)
             {
-                _logger.Error?.Log($"[CustomAsteroids:ui] '{_label}' handler threw (non-fatal): {ex}");
+                _logger.Error?.Log($"[AsteroidMaker:ui] '{_label}' handler threw (non-fatal): {ex}");
             }
 
             // End immediately — the engine shouldn't believe a placement is in progress; our own

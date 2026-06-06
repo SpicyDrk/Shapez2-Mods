@@ -29,9 +29,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnyLayerTrash", "Mods\AnyLa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnyLayerTrash.Tests", "Tests\AnyLayerTrash.Tests\AnyLayerTrash.Tests.csproj", "{0E776DA9-9AEC-4456-BBE2-D5A3D5D3B63E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomAsteroids", "Mods\CustomAsteroids\CustomAsteroids.csproj", "{F1494799-8293-4015-85A4-4F9BADB6D07D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsteroidMaker", "Mods\AsteroidMaker\AsteroidMaker.csproj", "{F1494799-8293-4015-85A4-4F9BADB6D07D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomAsteroids.Tests", "Tests\CustomAsteroids.Tests\CustomAsteroids.Tests.csproj", "{50C40F37-A471-435A-BF79-3A3F06BB09D4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsteroidMaker.Tests", "Tests\AsteroidMaker.Tests\AsteroidMaker.Tests.csproj", "{50C40F37-A471-435A-BF79-3A3F06BB09D4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

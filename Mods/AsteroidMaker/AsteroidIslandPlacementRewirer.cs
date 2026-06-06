@@ -3,10 +3,10 @@ using ShapezShifter;
 using ShapezShifter.Hijack;
 using ILogger = Core.Logging.ILogger;
 
-namespace CustomAsteroids
+namespace AsteroidMaker
 {
     /// <summary>
-    /// PLAN-P02-001 Task 1 — registers our <see cref="CustomAsteroidPlacementInitiator"/>
+    /// PLAN-P02-001 Task 1 — registers our <see cref="AsteroidPlacementInitiator"/>
     /// into the space-map placement system so the toolbar entry has an id to bind to.
     ///
     /// <para>Implements <see cref="IPlatformIslandPlacementRewirers"/> (the platform/space
@@ -17,21 +17,21 @@ namespace CustomAsteroids
     /// <c>CreateDefaultPlacer</c> (that places an island) — we register our own initiator
     /// and stash its id for the toolbar.</para>
     /// </summary>
-    internal sealed class CustomAsteroidIslandPlacementRewirer : IPlatformIslandPlacementRewirers
+    internal sealed class AsteroidIslandPlacementRewirer : IPlatformIslandPlacementRewirers
     {
-        private const string PlacerId = "CustomAsteroidInitiator";
-        private const string RemovePlacerId = "CustomAsteroidRemoveInitiator";
+        private const string PlacerId = "AsteroidInitiator";
+        private const string RemovePlacerId = "AsteroidRemoveInitiator";
 
-        private readonly CustomAsteroidUiState _ui;
-        private readonly CustomAsteroidPlacementInitiator _initiator;
-        private readonly CustomAsteroidPlacementInitiator _removeInitiator;
+        private readonly AsteroidUiState _ui;
+        private readonly AsteroidPlacementInitiator _initiator;
+        private readonly AsteroidPlacementInitiator _removeInitiator;
         private readonly ILogger _logger;
         private bool _logged;
 
-        public CustomAsteroidIslandPlacementRewirer(
-            CustomAsteroidUiState ui,
-            CustomAsteroidPlacementInitiator initiator,
-            CustomAsteroidPlacementInitiator removeInitiator,
+        public AsteroidIslandPlacementRewirer(
+            AsteroidUiState ui,
+            AsteroidPlacementInitiator initiator,
+            AsteroidPlacementInitiator removeInitiator,
             ILogger logger)
         {
             _ui = ui;
@@ -59,13 +59,13 @@ namespace CustomAsteroids
                 {
                     _logged = true;
                     _logger.Info?.Log(
-                        $"[CustomAsteroids:ui] registered placement initiators '{PlacerId}' (id={id}) + " +
+                        $"[AsteroidMaker:ui] registered placement initiators '{PlacerId}' (id={id}) + " +
                         $"'{RemovePlacerId}' (id={removeId}).");
                 }
             }
             catch (Exception ex)
             {
-                _logger.Error?.Log($"[CustomAsteroids:ui] ModifyIslandPlacers threw (non-fatal): {ex}");
+                _logger.Error?.Log($"[AsteroidMaker:ui] ModifyIslandPlacers threw (non-fatal): {ex}");
             }
         }
 

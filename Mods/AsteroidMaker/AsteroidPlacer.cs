@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Game.Core.Coordinates;
 using ILogger = Core.Logging.ILogger;
 
-namespace CustomAsteroids
+namespace AsteroidMaker
 {
     /// <summary>
     /// PLAN-P02-001 Task 4 / PLAN-P03-001 — adds + removes custom-shape mineable asteroids on the
@@ -25,7 +25,7 @@ namespace CustomAsteroids
     /// (<c>HUDShapeResourcesVisualization</c> draws one per source). The footprint is clipped to one
     /// super-chunk (<c>GetResourceAt_GC</c> resolves a source only within <c>gc.To_SC()</c>).</para>
     /// </summary>
-    internal static class CustomAsteroidPlacer
+    internal static class AsteroidPlacer
     {
         /// <summary>
         /// Default click-to-place footprint (chunks): a full space belt = 9 wide × 4 deep (36 chunks),

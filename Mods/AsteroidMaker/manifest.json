@@ -1,0 +1,21 @@
+{
+  "Version": "0.1.0",
+  "Title": "Asteroid Maker",
+  "Description": "Sandbox/creative tool: place mineable asteroids of any shape you author via a shape code. Pick 'Asteroid Maker' in the space-map build menu, type a shape code, then click to drop a 9x4 patch or DRAG A BOX to size it; an extractor over it mines exactly the authored shape (colors, crystals, pins, multi-layer). 'Remove Asteroid' deletes one; Ctrl+Z / Ctrl+Y undo/redo; placements persist across save/reload. KNOWN LIMITATION: deleting a custom asteroid that still has an extractor on it, or building an extractor past the patch edge, leaves the extractor over no resource and logs harmless engine errors (mining of valid setups is unaffected) — remove the extractor first.",
+  "Author": "Dork",
+  "SavedModVersionCompabilityRangeWithSelf": "*",
+  "GameVersionSupportRange": "*",
+  "AffectsSaveGames": true,
+  "DisablesAchievements": true,
+  "Conflicts": [],
+  "Assemblies": [
+    "AsteroidMaker.dll"
+  ],
+  "Dependencies": [
+    {
+      "ModId": "steam:3542611357",
+      "ModTitle": "Shapez Shifter",
+      "Version": "1.0.*"
+    }
+  ]
+}

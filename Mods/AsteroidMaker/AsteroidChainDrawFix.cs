@@ -6,7 +6,7 @@ using Game.Core.Rendering.Culling;
 using MonoMod.RuntimeDetour;
 using ILogger = Core.Logging.ILogger;
 
-namespace CustomAsteroids
+namespace AsteroidMaker
 {
     /// <summary>
     /// PLAN-P04-001 (UAT fix, Test 4) — suppresses a vanilla NullReferenceException that fires every
@@ -31,7 +31,7 @@ namespace CustomAsteroids
     /// sub-drawer's exceptions are ever masked. Catching here is strictly better than the status quo:
     /// the rest of the map keeps drawing instead of the whole frame's map draw unwinding.</para>
     /// </summary>
-    internal sealed class CustomAsteroidChainDrawFix : IDisposable
+    internal sealed class AsteroidChainDrawFix : IDisposable
     {
         // Only these sub-drawer subtypes get the try/catch — everything else draws untouched.
         private static readonly HashSet<Type> GuardedDrawerDefs = new HashSet<Type>
@@ -44,7 +44,7 @@ namespace CustomAsteroids
         private readonly ILogger _logger;
         private bool _warned;
 
-        public CustomAsteroidChainDrawFix(ILogger logger)
+        public AsteroidChainDrawFix(ILogger logger)
         {
             _logger = logger;
 
@@ -55,13 +55,13 @@ namespace CustomAsteroids
                 types: new[] { typeof(FrameDrawOptionsNoLOD), typeof(MapCullResult) },
                 modifiers: null)
                 ?? throw new InvalidOperationException(
-                    "CustomAsteroids: failed to find IndependentMapSubDrawer.Draw(FrameDrawOptionsNoLOD, MapCullResult).");
+                    "AsteroidMaker: failed to find IndependentMapSubDrawer.Draw(FrameDrawOptionsNoLOD, MapCullResult).");
 
             DrawDelegate detour = DrawPrefix;
             _hook = new Hook(method, detour);
 
             logger.Info?.Log(
-                "[CustomAsteroids:fix] miner-draw guard installed (suppresses the per-frame chained-extraction " +
+                "[AsteroidMaker:fix] miner-draw guard installed (suppresses the per-frame chained-extraction " +
                 "NRE on thin/edge custom patches; other sub-drawers untouched).");
         }
 
@@ -110,7 +110,7 @@ namespace CustomAsteroids
                 {
                     _warned = true;
                     _logger.Warning?.Log(
-                        "[CustomAsteroids:fix] suppressed a chained-extraction miner-draw NRE over a custom patch " +
+                        "[AsteroidMaker:fix] suppressed a chained-extraction miner-draw NRE over a custom patch " +
                         "(boost chain off a thin patch, or an extractor orphaned after delete). Logged once; mining unaffected.");
                 }
             }

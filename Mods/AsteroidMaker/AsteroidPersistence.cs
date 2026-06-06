@@ -6,10 +6,10 @@ using ShapezShifter.Flow;
 using ShapezShifter.Hijack;
 using ILogger = Core.Logging.ILogger;
 
-namespace CustomAsteroids
+namespace AsteroidMaker
 {
     /// <summary>PLAN-P03-001 Task 1 — JSON-serializable save blob: the placed custom asteroids.</summary>
-    public sealed class CustomAsteroidSaveData
+    public sealed class AsteroidSaveData
     {
         public List<PlacedAsteroidRecord> Asteroids { get; set; } = new List<PlacedAsteroidRecord>();
     }
@@ -31,9 +31,9 @@ namespace CustomAsteroids
         public int Y { get; set; }
     }
 
-    internal sealed class CustomAsteroidSaveDataFactory : IFactory<CustomAsteroidSaveData>
+    internal sealed class AsteroidSaveDataFactory : IFactory<AsteroidSaveData>
     {
-        public CustomAsteroidSaveData Produce() => new CustomAsteroidSaveData();
+        public AsteroidSaveData Produce() => new AsteroidSaveData();
     }
 
     /// <summary>
@@ -43,43 +43,43 @@ namespace CustomAsteroids
     /// vanilla serializer does NOT write (<c>SuperChunkSerializer.Serialize</c> only persists
     /// chunks where <c>ContainsIslands</c>), so they'd vanish on reload. We own their persistence
     /// via Shifter's <see cref="ModSaveDataRewirer{T}"/> — a per-save JSON blob. The registry
-    /// (<see cref="CustomAsteroidSaveData"/>) is the source of truth: a record is appended on each
+    /// (<see cref="AsteroidSaveData"/>) is the source of truth: a record is appended on each
     /// placement, removed on delete/undo, and re-injected into the live resource map on load.</para>
     ///
     /// <para><b>Re-inject timing.</b> The load (<c>AfterSaveDataDeserialized</c>), the
     /// <c>ResourcesMap</c> capture, and the game's own <c>GameResourcesMap.Deserialize</c> fire in
     /// an order we can't guarantee — and a too-early injection would be wiped when Deserialize
     /// clears the chunk dictionary. So after a load we re-ensure every record for a short settle
-    /// window (driven by <see cref="CustomAsteroidPersistenceTick"/>): each tick, any record whose
+    /// window (driven by <see cref="AsteroidPersistenceTick"/>): each tick, any record whose
     /// origin doesn't currently resolve to a source is (re)added (idempotent), and the window ends
     /// once all records have been stably present for a few frames.</para>
     /// </summary>
-    internal sealed class CustomAsteroidPersistence : IDisposable
+    internal sealed class AsteroidPersistence : IDisposable
     {
         private const int SettleFramesAfterLoad = 300; // ~5s ceiling — covers load-order races
         private const int StableFramesToStop = 30;     // stop ~0.5s after all records are present
 
-        private readonly CustomAsteroidUiState _ui;
+        private readonly AsteroidUiState _ui;
         private readonly ILogger _logger;
 
         private bool _dataLoaded;
         private int _settleFramesLeft;
         private int _stableFrames;
 
-        public ModSaveDataRewirer<CustomAsteroidSaveData> SaveRewirer { get; }
-        public CustomAsteroidPersistenceTick SettleTick { get; }
+        public ModSaveDataRewirer<AsteroidSaveData> SaveRewirer { get; }
+        public AsteroidPersistenceTick SettleTick { get; }
 
-        public CustomAsteroidPersistence(CustomAsteroidUiState ui, ILogger logger)
+        public AsteroidPersistence(AsteroidUiState ui, ILogger logger)
         {
             _ui = ui;
             _logger = logger;
-            SaveRewirer = new ModSaveDataRewirer<CustomAsteroidSaveData>(
-                "custom-asteroids", new CustomAsteroidSaveDataFactory(), logger);
+            SaveRewirer = new ModSaveDataRewirer<AsteroidSaveData>(
+                "asteroid-maker", new AsteroidSaveDataFactory(), logger);
             SaveRewirer.AfterSaveDataDeserialized.Register(OnAfterLoad);
-            SettleTick = new CustomAsteroidPersistenceTick(this);
+            SettleTick = new AsteroidPersistenceTick(this);
         }
 
-        private CustomAsteroidSaveData Data => SaveRewirer.Data;
+        private AsteroidSaveData Data => SaveRewirer.Data;
 
         /// <summary>
         /// Append a record for a freshly placed asteroid (called by the placement controller).
@@ -91,7 +91,7 @@ namespace CustomAsteroids
             foreach (ChunkVector o in offsets) rec.Tiles.Add(new TileOffset { X = o.x, Y = o.y });
             Data.Asteroids.Add(rec);
             _logger.Info?.Log(
-                $"[CustomAsteroids:save] recorded '{code}' at ({origin.x},{origin.y},{origin.z}) " +
+                $"[AsteroidMaker:save] recorded '{code}' at ({origin.x},{origin.y},{origin.z}) " +
                 $"({rec.Tiles.Count} tiles); total tracked={Data.Asteroids.Count}.");
             return rec;
         }
@@ -138,18 +138,18 @@ namespace CustomAsteroids
             if (_dataLoaded) TryReinject();
         }
 
-        private void OnAfterLoad(CustomAsteroidSaveData data)
+        private void OnAfterLoad(AsteroidSaveData data)
         {
             _dataLoaded = true;
             _settleFramesLeft = SettleFramesAfterLoad;
             _stableFrames = 0;
             int count = data?.Asteroids?.Count ?? 0;
             _logger.Info?.Log(
-                $"[CustomAsteroids:save] loaded {count} tracked asteroid(s); re-injecting over the settle window.");
+                $"[AsteroidMaker:save] loaded {count} tracked asteroid(s); re-injecting over the settle window.");
             TryReinject();
         }
 
-        /// <summary>Driven by <see cref="CustomAsteroidPersistenceTick"/> — re-ensure records during the settle window.</summary>
+        /// <summary>Driven by <see cref="AsteroidPersistenceTick"/> — re-ensure records during the settle window.</summary>
         internal void TickSettle()
         {
             if (_settleFramesLeft <= 0) return;
@@ -162,7 +162,7 @@ namespace CustomAsteroids
             if (!_dataLoaded) return;
             if (_ui.ResourcesMap is not GameResourcesMap grm) return;
 
-            CustomAsteroidSaveData data = Data;
+            AsteroidSaveData data = Data;
             if (data?.Asteroids == null || data.Asteroids.Count == 0)
             {
                 _settleFramesLeft = 0;
@@ -187,7 +187,7 @@ namespace CustomAsteroids
                 foreach (TileOffset t in rec.Tiles) offsets.Add(new ChunkVector(t.X, t.Y, 0));
                 if (offsets.Count == 0) offsets.Add(new ChunkVector(0, 0, 0));
 
-                if (CustomAsteroidPlacer.TryAddSource(grm, shape, origin, offsets, _logger, out _, out _))
+                if (AsteroidPlacer.TryAddSource(grm, shape, origin, offsets, _logger, out _, out _))
                     injected++;
                 else
                     failed++;
@@ -196,7 +196,7 @@ namespace CustomAsteroids
             if (injected > 0 || failed > 0)
             {
                 _logger.Info?.Log(
-                    $"[CustomAsteroids:save] re-inject pass: {injected} added, {present} present, {failed} failed " +
+                    $"[AsteroidMaker:save] re-inject pass: {injected} added, {present} present, {failed} failed " +
                     $"(of {data.Asteroids.Count}).");
             }
 
@@ -214,12 +214,12 @@ namespace CustomAsteroids
         public void Dispose() => SaveRewirer.Dispose();
     }
 
-    /// <summary>Drives <see cref="CustomAsteroidPersistence.TickSettle"/> during the post-load settle window.</summary>
-    internal sealed class CustomAsteroidPersistenceTick : ITickRewirer
+    /// <summary>Drives <see cref="AsteroidPersistence.TickSettle"/> during the post-load settle window.</summary>
+    internal sealed class AsteroidPersistenceTick : ITickRewirer
     {
-        private readonly CustomAsteroidPersistence _persistence;
+        private readonly AsteroidPersistence _persistence;
 
-        public CustomAsteroidPersistenceTick(CustomAsteroidPersistence persistence)
+        public AsteroidPersistenceTick(AsteroidPersistence persistence)
         {
             _persistence = persistence;
         }

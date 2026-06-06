@@ -4,14 +4,15 @@ using System.Reflection;
 using Core.Localization;
 using ShapezShifter.Flow.Toolbar;
 using ShapezShifter.Hijack;
+using UnityEngine;
 using ILogger = Core.Logging.ILogger;
 
-namespace CustomAsteroids
+namespace AsteroidMaker
 {
     /// <summary>
-    /// PLAN-P02-001 Task 1 — inserts a "Custom Asteroid" entry into the space-map build
+    /// PLAN-P02-001 Task 1 — inserts a "Asteroid Maker" entry into the space-map build
     /// toolbar, bound to the <c>PlacementInitiatorId</c> registered by
-    /// <see cref="CustomAsteroidIslandPlacementRewirer"/>.
+    /// <see cref="AsteroidIslandPlacementRewirer"/>.
     ///
     /// <para>Implements <see cref="IToolbarDataRewirer"/>. Shifter's
     /// <c>ToolbarInterceptor</c> prefix-hooks <c>ToolbarBuilder.BuildToolbar</c> and calls
@@ -19,7 +20,7 @@ namespace CustomAsteroids
     /// public <c>ToolbarRewirer</c> directly because it takes the
     /// <c>PlacementInitiatorId</c> at construction, but that id only exists after the
     /// placer-registration pass runs in-session — so we read it lazily from
-    /// <see cref="CustomAsteroidUiState"/>.</para>
+    /// <see cref="AsteroidUiState"/>.</para>
     ///
     /// <para>The entry is appended to the <b>Space Platforms</b> category (matched by its
     /// title key, <c>island-toolbar.category-RegularPlatform</c>), after the platform
@@ -27,20 +28,20 @@ namespace CustomAsteroids
     /// across unlock state and other mods, and means we only touch the space-map toolbar
     /// (building bars and other contexts lack that category and are left untouched).</para>
     /// </summary>
-    internal sealed class CustomAsteroidToolbarRewirer : IToolbarDataRewirer
+    internal sealed class AsteroidToolbarRewirer : IToolbarDataRewirer
     {
         // Title-key substring of the space-map "Space Platforms" category, as seen in the
         // live toolbar tree: LazyText[island-toolbar.category-RegularPlatform.title].
         private const string SpacePlatformsCategoryKey = "category-RegularPlatform";
-        private const string EntryTitle = "Custom Asteroid";
-        private const string RemoveEntryTitle = "Remove Custom Asteroid";
+        private const string EntryTitle = "Asteroid Maker";
+        private const string RemoveEntryTitle = "Remove Asteroid";
 
-        private readonly CustomAsteroidUiState _ui;
+        private readonly AsteroidUiState _ui;
         private readonly ILogger _logger;
         private bool _loggedAdd;
         private bool _loggedMissing;
 
-        public CustomAsteroidToolbarRewirer(CustomAsteroidUiState ui, ILogger logger)
+        public AsteroidToolbarRewirer(AsteroidUiState ui, ILogger logger)
         {
             _ui = ui;
             _logger = logger;
@@ -56,7 +57,7 @@ namespace CustomAsteroids
                     {
                         _loggedMissing = true;
                         _logger.Warning?.Log(
-                            "[CustomAsteroids:ui] toolbar built before the initiator was registered; " +
+                            "[AsteroidMaker:ui] toolbar built before the initiator was registered; " +
                             "entry skipped this pass (will appear once placers are registered).");
                     }
                     return toolbarData;
@@ -79,21 +80,21 @@ namespace CustomAsteroids
                 bool addedPlace = TryInsertEntry(
                     platforms, EntryTitle,
                     "Place a custom-shape mineable asteroid (author it via a shape code).",
-                    _ui.InitiatorId, true);
+                    _ui.InitiatorId, true, _ui.PlaceIcon);
                 bool addedRemove = _ui.RemoveInitiatorRegistered && TryInsertEntry(
                     platforms, RemoveEntryTitle,
                     "Remove a custom asteroid you placed (click it on the space map).",
-                    _ui.RemoveInitiatorId, true);
+                    _ui.RemoveInitiatorId, true, _ui.RemoveIcon);
 
                 if ((addedPlace || addedRemove) && !_loggedAdd)
                 {
                     _loggedAdd = true;
-                    _logger.Info?.Log("[CustomAsteroids:ui] inserted 'Custom Asteroid' + 'Remove Custom Asteroid' entries at the end of the Space Platforms category.");
+                    _logger.Info?.Log("[AsteroidMaker:ui] inserted 'Asteroid Maker' + 'Remove Asteroid' entries at the end of the Space Platforms category.");
                 }
             }
             catch (Exception ex)
             {
-                _logger.Error?.Log($"[CustomAsteroids:ui] ModifyToolbarData threw (non-fatal): {ex}");
+                _logger.Error?.Log($"[AsteroidMaker:ui] ModifyToolbarData threw (non-fatal): {ex}");
             }
 
             return toolbarData;
@@ -127,14 +128,14 @@ namespace CustomAsteroids
         /// </summary>
         private bool TryInsertEntry(
             IParentToolbarElementData category, string entryTitle, string entryDescription,
-            PlacementInitiatorId id, bool registered)
+            PlacementInitiatorId id, bool registered, Sprite? icon)
         {
             if (!registered) return false;
             if (CategoryHasEntry(category, entryTitle)) return false;
 
             IText title = new RawText(entryTitle);
             IText description = new RawText(entryDescription);
-            var entry = new PlacementToolbarElementData(title, description, id, null);
+            var entry = new PlacementToolbarElementData(title, description, id, icon);
             category.InsertAtIndex((IToolbarElementData)entry, category.Children.Count());
             return true;
         }

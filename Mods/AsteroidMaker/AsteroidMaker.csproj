@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    CustomAsteroids — sandbox/creative mod that places custom-shape MINEABLE
+    AsteroidMaker — sandbox/creative mod that places custom-shape MINEABLE
     asteroids onto the space map. The player authors a shape via shape code in a
     build-menu dialog, then clicks the space map to place; a vanilla extractor over
     the placed asteroid outputs that exact shape.
@@ -93,7 +93,7 @@
 
     <!-- Drag preview: ALINE (com.arongranberg.aline) provides Drawing.CommandBuilder,
          returned by FrameDrawOptionsNoLOD.GetDebugDrawer(); Unity.Mathematics provides float3
-         for the SolidPlane normal. Used by CustomAsteroidPlacementPreview to paint the box
+         for the SolidPlane normal. Used by AsteroidPlacementPreview to paint the box
          footprint in-game (same draw path vanilla debug views use). -->
     <Reference Include="ALINE">
       <HintPath>$(SPZ2_PATH)\ALINE.dll</HintPath>
@@ -137,7 +137,7 @@
       <Private>False</Private>
     </Reference>
     <!-- Legacy Input (UnityEngine.Input) for the placement cursor — left-click to place,
-         Esc / right-click to cancel (CustomAsteroidPlacementController). -->
+         Esc / right-click to cancel (AsteroidPlacementController). -->
     <Reference Include="UnityEngine.InputLegacyModule">
       <HintPath>$(SPZ2_PATH)\UnityEngine.InputLegacyModule.dll</HintPath>
       <Private>False</Private>
@@ -179,6 +179,10 @@
 
   <ItemGroup>
     <None Update="manifest.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- Build-menu entry icons (loaded at runtime via Shifter FileTextureLoader). -->
+    <None Update="Resources/**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

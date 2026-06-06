@@ -7,7 +7,7 @@ using ShapezShifter.Hijack;
 using UnityEngine;
 using ILogger = Core.Logging.ILogger;
 
-namespace CustomAsteroids
+namespace AsteroidMaker
 {
     /// <summary>
     /// PLAN-P03-001 Task 3 (SC-09) — a session-only undo/redo stack for custom-asteroid
@@ -24,10 +24,10 @@ namespace CustomAsteroids
     /// (Place → remove from map + registry; Delete → re-add); redo re-applies. A new place/delete
     /// clears the redo stack (standard semantics). The stack is NOT persisted — after a reload it's
     /// empty, so Ctrl+Z does nothing of ours and vanilla undo behaves normally (per the user's
-    /// chosen design). <see cref="CustomAsteroidUndoController"/> only invokes us when the relevant
+    /// chosen design). <see cref="AsteroidUndoController"/> only invokes us when the relevant
     /// stack is non-empty, so an empty stack never intercepts the vanilla keypress.</para>
     /// </summary>
-    internal sealed class CustomAsteroidUndo
+    internal sealed class AsteroidUndo
     {
         private const int MaxDepth = 64; // bounded — guards against unbounded session growth
 
@@ -41,10 +41,10 @@ namespace CustomAsteroids
 
         private readonly LinkedList<Op> _undo = new LinkedList<Op>();
         private readonly Stack<Op> _redo = new Stack<Op>();
-        private readonly CustomAsteroidUiState _ui;
+        private readonly AsteroidUiState _ui;
         private readonly ILogger _logger;
 
-        public CustomAsteroidUndo(CustomAsteroidUiState ui, ILogger logger)
+        public AsteroidUndo(AsteroidUiState ui, ILogger logger)
         {
             _ui = ui;
             _logger = logger;
@@ -82,13 +82,13 @@ namespace CustomAsteroids
             {
                 _redo.Push(op);
                 _logger.Info?.Log(
-                    $"[CustomAsteroids:undo] undid {op.Kind} of '{op.Record.Code}' at " +
+                    $"[AsteroidMaker:undo] undid {op.Kind} of '{op.Record.Code}' at " +
                     $"({op.Record.X},{op.Record.Y},{op.Record.Z}). undo={_undo.Count} redo={_redo.Count}.");
             }
             else
             {
                 _undo.AddLast(op); // restore on failure so the stack stays consistent
-                _logger.Warning?.Log($"[CustomAsteroids:undo] could not undo {op.Kind} of '{op.Record.Code}'.");
+                _logger.Warning?.Log($"[AsteroidMaker:undo] could not undo {op.Kind} of '{op.Record.Code}'.");
             }
             return ok;
         }
@@ -107,13 +107,13 @@ namespace CustomAsteroids
             {
                 _undo.AddLast(op);
                 _logger.Info?.Log(
-                    $"[CustomAsteroids:undo] redid {op.Kind} of '{op.Record.Code}' at " +
+                    $"[AsteroidMaker:undo] redid {op.Kind} of '{op.Record.Code}' at " +
                     $"({op.Record.X},{op.Record.Y},{op.Record.Z}). undo={_undo.Count} redo={_redo.Count}.");
             }
             else
             {
                 _redo.Push(op);
-                _logger.Warning?.Log($"[CustomAsteroids:undo] could not redo {op.Kind} of '{op.Record.Code}'.");
+                _logger.Warning?.Log($"[AsteroidMaker:undo] could not redo {op.Kind} of '{op.Record.Code}'.");
             }
             return ok;
         }
@@ -125,7 +125,7 @@ namespace CustomAsteroids
 
             if (!CanonicalShapeResolver.TryResolve(rec.Code, out ShapeDefinition shape, out string diag))
             {
-                _logger.Warning?.Log($"[CustomAsteroids:undo] cannot re-add — '{rec.Code}' no longer resolves ({diag}).");
+                _logger.Warning?.Log($"[AsteroidMaker:undo] cannot re-add — '{rec.Code}' no longer resolves ({diag}).");
                 return false;
             }
 
@@ -133,9 +133,9 @@ namespace CustomAsteroids
             foreach (TileOffset t in rec.Tiles) offsets.Add(new ChunkVector(t.X, t.Y, 0));
             if (offsets.Count == 0) offsets.Add(new ChunkVector(0, 0, 0));
 
-            if (!CustomAsteroidPlacer.TryAddSource(grm, shape, origin, offsets, _logger, out string addDiag, out _))
+            if (!AsteroidPlacer.TryAddSource(grm, shape, origin, offsets, _logger, out string addDiag, out _))
             {
-                _logger.Warning?.Log($"[CustomAsteroids:undo] re-add at {origin} failed ({addDiag}).");
+                _logger.Warning?.Log($"[AsteroidMaker:undo] re-add at {origin} failed ({addDiag}).");
                 return false;
             }
 
@@ -147,16 +147,16 @@ namespace CustomAsteroids
         private bool ApplyRemove(GameResourcesMap grm, PlacedAsteroidRecord rec)
         {
             var origin = new GlobalChunkCoordinate(rec.X, rec.Y, (short)rec.Z);
-            CustomAsteroidPlacer.TryRemoveAt(grm, origin, _logger, out string diag);
+            AsteroidPlacer.TryRemoveAt(grm, origin, _logger, out string diag);
             _ui.Persistence?.RemoveRecordExact(rec);
-            _logger.Info?.Log($"[CustomAsteroids:undo] removed source at {origin} ({diag}).");
+            _logger.Info?.Log($"[AsteroidMaker:undo] removed source at {origin} ({diag}).");
             return true; // registry is now consistent regardless of whether a live source existed
         }
     }
 
     /// <summary>
     /// PLAN-P03-001 Task 3 (revised) — routes the engine's undo/redo INPUT to
-    /// <see cref="CustomAsteroidUndo"/> without double-firing.
+    /// <see cref="AsteroidUndo"/> without double-firing.
     ///
     /// <para><b>Why a hook, not input polling.</b> The first version polled <c>Input.GetKeyDown(Z)</c> in a
     /// tick and ran our undo — but it could NOT stop the engine from also handling the same Ctrl+Z, so one
@@ -172,16 +172,16 @@ namespace CustomAsteroids
     /// asteroids. The Can-gates are widened to <c>vanilla || ours</c> so the input is still accepted when
     /// only our stack has something to reverse (otherwise <c>SystemButtonsModel</c> would reject the press).</para>
     /// </summary>
-    internal sealed class CustomAsteroidUndoHook : IDisposable
+    internal sealed class AsteroidUndoHook : IDisposable
     {
-        private readonly CustomAsteroidUndo _undo;
+        private readonly AsteroidUndo _undo;
         private readonly ILogger _logger;
         private readonly Hook _canUndoHook;
         private readonly Hook _canRedoHook;
         private readonly Hook _scheduleUndoHook;
         private readonly Hook _scheduleRedoHook;
 
-        public CustomAsteroidUndoHook(CustomAsteroidUndo undo, ILogger logger)
+        public AsteroidUndoHook(AsteroidUndo undo, ILogger logger)
         {
             _undo = undo;
             _logger = logger;
@@ -192,7 +192,7 @@ namespace CustomAsteroids
             _scheduleRedoHook = HookVoid("ScheduleRedo", ScheduleRedoDetour);
 
             logger.Info?.Log(
-                "[CustomAsteroids:undo] undo/redo router installed (single Ctrl+Z = one reversal; vanilla " +
+                "[AsteroidMaker:undo] undo/redo router installed (single Ctrl+Z = one reversal; vanilla " +
                 "first, custom asteroids as the fallback once the engine stack is empty).");
         }
 
@@ -210,7 +210,7 @@ namespace CustomAsteroids
         private static MethodInfo Resolve(string name) =>
             typeof(PlayerActionManager).GetMethod(
                 name, BindingFlags.Instance | BindingFlags.Public, binder: null, Type.EmptyTypes, modifiers: null)
-            ?? throw new InvalidOperationException($"CustomAsteroids: PlayerActionManager.{name}() not found.");
+            ?? throw new InvalidOperationException($"AsteroidMaker: PlayerActionManager.{name}() not found.");
 
         private delegate bool CanDelegate(Func<PlayerActionManager, bool> orig, PlayerActionManager self);
         private delegate void SchedDelegate(Action<PlayerActionManager> orig, PlayerActionManager self);
@@ -245,7 +245,7 @@ namespace CustomAsteroids
             }
             catch (Exception ex)
             {
-                _logger.Error?.Log($"[CustomAsteroids:undo] custom {tag} threw (non-fatal): {ex}");
+                _logger.Error?.Log($"[AsteroidMaker:undo] custom {tag} threw (non-fatal): {ex}");
                 return true; // treat as handled — don't fall through to a vanilla action
             }
         }
