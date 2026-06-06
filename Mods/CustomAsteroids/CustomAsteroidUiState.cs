@@ -107,5 +107,20 @@ namespace CustomAsteroids
         /// <see cref="CustomAsteroidUndoController"/> drives Ctrl+Z / Ctrl+Y. Set by the mod entry point.
         /// </summary>
         public CustomAsteroidUndo? Undo;
+
+        /// <summary>
+        /// True while the player is actively box-dragging a placement (mouse-down → drag → not yet
+        /// released). Published every frame by <see cref="CustomAsteroidPlacementController"/> and read
+        /// by <see cref="CustomAsteroidPlacementPreview"/>, which draws a translucent rectangle over
+        /// <see cref="DragAnchor"/>→<see cref="DragCurrent"/> so the player sees the footprint before
+        /// release. Cleared on release / cancel / disarm.
+        /// </summary>
+        public bool DragPreviewActive;
+
+        /// <summary>The tile the current box-drag started on (origin corner). Valid while <see cref="DragPreviewActive"/>.</summary>
+        public GlobalChunkCoordinate DragAnchor;
+
+        /// <summary>The tile under the cursor this frame (far corner of the drag box). Valid while <see cref="DragPreviewActive"/>.</summary>
+        public GlobalChunkCoordinate DragCurrent;
     }
 }

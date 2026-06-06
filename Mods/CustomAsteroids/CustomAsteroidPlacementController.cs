@@ -65,6 +65,7 @@ namespace CustomAsteroids
                 _loggedArm = false;
                 _haveHover = false;
                 _dragging = false;
+                _ui.DragPreviewActive = false;
                 return;
             }
 
@@ -101,6 +102,7 @@ namespace CustomAsteroids
             {
                 _ui.PlacementArmed = false;
                 _dragging = false;
+                _ui.DragPreviewActive = false;
                 _logger.Info?.Log("[CustomAsteroids:place] placement cancelled.");
                 return;
             }
@@ -117,12 +119,22 @@ namespace CustomAsteroids
                 _logger.Info?.Log($"[CustomAsteroids:place] drag start at {gc} (SC {gc.To_SC()}).");
             }
 
+            // While dragging, publish the live box (anchor → current hover) so the preview drawer can
+            // render the footprint before release. Falls back to the anchor when the cursor is off-map.
+            if (_dragging)
+            {
+                _ui.DragPreviewActive = true;
+                _ui.DragAnchor = _dragAnchor;
+                _ui.DragCurrent = haveGc ? gc : _dragAnchor;
+            }
+
             // Drag end: release tile defines the far corner of the box. If the cursor left the map,
             // fall back to the anchor (→ a plain click = default patch). Handles a same-frame
             // down+up (fast click) too, since both checks run in one pass.
             if (Input.GetMouseButtonUp(0) && _dragging)
             {
                 _dragging = false;
+                _ui.DragPreviewActive = false;
                 GlobalChunkCoordinate release = haveGc ? gc : _dragAnchor;
                 PlaceFootprint(_dragAnchor, release);
             }

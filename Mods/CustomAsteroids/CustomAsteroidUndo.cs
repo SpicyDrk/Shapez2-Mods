@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Game.Core.Coordinates;
+using MonoMod.RuntimeDetour;
 using ShapezShifter.Hijack;
 using UnityEngine;
 using ILogger = Core.Logging.ILogger;
@@ -153,53 +155,99 @@ namespace CustomAsteroids
     }
 
     /// <summary>
-    /// PLAN-P03-001 Task 3 — drives <see cref="CustomAsteroidUndo"/> from the keyboard.
-    /// Ctrl+Z undoes, Ctrl+Y (or Ctrl+Shift+Z) redoes — but ONLY when our corresponding stack is
-    /// non-empty. When the stack is empty we don't consume the keypress at all, so vanilla undo
-    /// behaves exactly as it does without the mod (the user's chosen design).
+    /// PLAN-P03-001 Task 3 (revised) — routes the engine's undo/redo INPUT to
+    /// <see cref="CustomAsteroidUndo"/> without double-firing.
+    ///
+    /// <para><b>Why a hook, not input polling.</b> The first version polled <c>Input.GetKeyDown(Z)</c> in a
+    /// tick and ran our undo — but it could NOT stop the engine from also handling the same Ctrl+Z, so one
+    /// press undid our asteroid AND a vanilla action (e.g. a miner) at once. The undo/redo input has a single
+    /// funnel: <c>SystemButtonsModel.TryUndo/TryRedo</c> → <c>PlayerActionManager.CanUndo()/CanRedo()</c>
+    /// gate → <c>ScheduleUndo()/ScheduleRedo()</c>. We hook those four methods so a single press performs
+    /// exactly ONE undo/redo.</para>
+    ///
+    /// <para><b>Ordering: vanilla first, ours as the fallback.</b> While the engine has anything on its own
+    /// undo stack, Ctrl+Z reverses that (recently-built platforms / miners). Only once the engine's stack is
+    /// empty does Ctrl+Z fall through to our custom-asteroid stack. This matches the usual flow — asteroids
+    /// placed first, structures built over them after — so you undo the newer structures before the older
+    /// asteroids. The Can-gates are widened to <c>vanilla || ours</c> so the input is still accepted when
+    /// only our stack has something to reverse (otherwise <c>SystemButtonsModel</c> would reject the press).</para>
     /// </summary>
-    internal sealed class CustomAsteroidUndoController : ITickRewirer
+    internal sealed class CustomAsteroidUndoHook : IDisposable
     {
         private readonly CustomAsteroidUndo _undo;
         private readonly ILogger _logger;
-        private int _lastFrame = -1;
+        private readonly Hook _canUndoHook;
+        private readonly Hook _canRedoHook;
+        private readonly Hook _scheduleUndoHook;
+        private readonly Hook _scheduleRedoHook;
 
-        public CustomAsteroidUndoController(CustomAsteroidUndo undo, ILogger logger)
+        public CustomAsteroidUndoHook(CustomAsteroidUndo undo, ILogger logger)
         {
             _undo = undo;
             _logger = logger;
+
+            _canUndoHook = HookBool("CanUndo", CanUndoDetour);
+            _canRedoHook = HookBool("CanRedo", CanRedoDetour);
+            _scheduleUndoHook = HookVoid("ScheduleUndo", ScheduleUndoDetour);
+            _scheduleRedoHook = HookVoid("ScheduleRedo", ScheduleRedoDetour);
+
+            logger.Info?.Log(
+                "[CustomAsteroids:undo] undo/redo router installed (single Ctrl+Z = one reversal; vanilla " +
+                "first, custom asteroids as the fallback once the engine stack is empty).");
         }
 
-        public void Tick(float deltaTime)
+        public void Dispose()
         {
-            // Tick can fire more than once per frame; act once per frame.
-            int frame = Time.frameCount;
-            if (frame == _lastFrame) return;
-            _lastFrame = frame;
+            _canUndoHook.Dispose();
+            _canRedoHook.Dispose();
+            _scheduleUndoHook.Dispose();
+            _scheduleRedoHook.Dispose();
+        }
 
+        private static Hook HookBool(string name, CanDelegate detour) => new Hook(Resolve(name), detour);
+        private static Hook HookVoid(string name, SchedDelegate detour) => new Hook(Resolve(name), detour);
+
+        private static MethodInfo Resolve(string name) =>
+            typeof(PlayerActionManager).GetMethod(
+                name, BindingFlags.Instance | BindingFlags.Public, binder: null, Type.EmptyTypes, modifiers: null)
+            ?? throw new InvalidOperationException($"CustomAsteroids: PlayerActionManager.{name}() not found.");
+
+        private delegate bool CanDelegate(Func<PlayerActionManager, bool> orig, PlayerActionManager self);
+        private delegate void SchedDelegate(Action<PlayerActionManager> orig, PlayerActionManager self);
+
+        // Accept the undo/redo input when EITHER the engine or our stack has something to reverse.
+        private bool CanUndoDetour(Func<PlayerActionManager, bool> orig, PlayerActionManager self)
+            => orig(self) || _undo.CanUndo;
+
+        private bool CanRedoDetour(Func<PlayerActionManager, bool> orig, PlayerActionManager self)
+            => orig(self) || _undo.CanRedo;
+
+        // Vanilla first: if the engine has an action to reverse, let it; otherwise reverse one of ours.
+        private void ScheduleUndoDetour(Action<PlayerActionManager> orig, PlayerActionManager self)
+        {
+            if (self.HasActionsOnUndoStack) { orig(self); return; }
+            if (TryOurs(_undo.Undo, "undo")) return;
+            orig(self);
+        }
+
+        private void ScheduleRedoDetour(Action<PlayerActionManager> orig, PlayerActionManager self)
+        {
+            if (self.HasActionsOnRedoStack) { orig(self); return; }
+            if (TryOurs(_undo.Redo, "redo")) return;
+            orig(self);
+        }
+
+        private bool TryOurs(Func<bool> op, string tag)
+        {
             try
             {
-                bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
-                if (!ctrl) return;
-
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-
-                // Redo: Ctrl+Y or Ctrl+Shift+Z. Undo: Ctrl+Z (no shift).
-                if (Input.GetKeyDown(KeyCode.Y) || (shift && Input.GetKeyDown(KeyCode.Z)))
-                {
-                    if (_undo.CanRedo) _undo.Redo();
-                }
-                else if (!shift && Input.GetKeyDown(KeyCode.Z))
-                {
-                    if (_undo.CanUndo) _undo.Undo();
-                }
+                return op();
             }
             catch (Exception ex)
             {
-                _logger.Error?.Log($"[CustomAsteroids:undo] tick threw (non-fatal): {ex}");
+                _logger.Error?.Log($"[CustomAsteroids:undo] custom {tag} threw (non-fatal): {ex}");
+                return true; // treat as handled — don't fall through to a vanilla action
             }
         }
-
-        public bool Equals(IRewirer other) => ReferenceEquals(this, other);
     }
 }

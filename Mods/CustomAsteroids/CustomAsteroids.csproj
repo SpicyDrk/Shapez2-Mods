@@ -1,23 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    CustomAsteroids — sandbox/creative mod that injects custom-shape MINEABLE
-    asteroids onto the space map. The player authors a shape via shape code
-    (Phase 2 UI); a vanilla extractor over the placed asteroid outputs that
-    exact shape.
+    CustomAsteroids — sandbox/creative mod that places custom-shape MINEABLE
+    asteroids onto the space map. The player authors a shape via shape code in a
+    build-menu dialog, then clicks the space map to place; a vanilla extractor over
+    the placed asteroid outputs that exact shape.
 
-    Phase P01 is a feasibility spike + scaffold: prove a mod can inject a
-    ShapeMapResourceSource (custom hardcoded shape) into the live space-map
-    GameResourcesMap and have a vanilla extractor mine it. No UI yet.
+    Reference set mirrors AnyLayerTrash (proven-good superset). The publicized
+    assemblies that matter here:
+      - SPZGameAssembly       → GameResourcesMap (SuperChunksByCoordinate) +
+                                ShapeMapResourceSource.
+      - Game.Core.Map         → MapSuperChunk's private resource list / GC lookup /
+                                type cache — we add a resource source to the LIVE
+                                chunk in place (never rebuild + swap, which would
+                                drop the chunk's island/platform registrations).
+      - Game.Content.Features → ShapeDefinition (the model the patch carries).
+      - Game.Orchestration    → PlacementToolbarElementData / toolbar element data.
 
-    Reference set mirrors AnyLayerTrash (proven-good superset). The two
-    publicized assemblies matter most here:
-      - SPZGameAssembly       → GameResourcesMap / MapSuperChunk (the asteroid
-                                container has no public Add; publicizing exposes
-                                its private resource list for runtime injection)
-                                + ShapeMapResourceSource.
-      - Game.Content.Features → IShapeDefinitionFactory / ShapeDefinition
-                                (shape-code parse → the model the patch wants).
+    Shape identity is resolved canonically at place-time (GameHelper.Core.ShapeRegistry).
 
     Inherits TargetFramework (netstandard2.1) / LangVersion (9) / Nullable from
     the workspace Directory.Build.props.
@@ -91,6 +91,31 @@
       <Private>False</Private>
     </Reference>
 
+    <!-- Drag preview: ALINE (com.arongranberg.aline) provides Drawing.CommandBuilder,
+         returned by FrameDrawOptionsNoLOD.GetDebugDrawer(); Unity.Mathematics provides float3
+         for the SolidPlane normal. Used by CustomAsteroidPlacementPreview to paint the box
+         footprint in-game (same draw path vanilla debug views use). -->
+    <Reference Include="ALINE">
+      <HintPath>$(SPZ2_PATH)\ALINE.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Mathematics">
+      <HintPath>$(SPZ2_PATH)\Unity.Mathematics.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <!-- Phase 2 UI: placement initiators, toolbar data, PlacementInitiatorId/ToolbarData
+         (IPlacementInitiatorIdRegistry, PlacementToolbarElementData) live here. -->
+    <Reference Include="Game.Orchestration">
+      <HintPath>$(SPZ2_PATH)\Game.Orchestration.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <!-- Phase 2 UI: Core.Localization.IText / RawText for toolbar entry text. -->
+    <Reference Include="Core.Localization">
+      <HintPath>$(SPZ2_PATH)\Core.Localization.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
     <Reference Include="Game.Content.Features">
       <HintPath>$(SPZ2_PATH)\Game.Content.Features.dll</HintPath>
       <Private>False</Private>
@@ -100,11 +125,19 @@
       <Private>False</Private>
     </Reference>
 
+    <!-- Phase 2 UI: Unity.Core.Prefabs.IPrefabInstanceProvider (HUDDialogStack ctor sig
+         for the dialog-stack capture hook) + PrefabReference<T>. -->
+    <Reference Include="Unity.Core">
+      <HintPath>$(SPZ2_PATH)\Unity.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>$(SPZ2_PATH)\UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <!-- Legacy Input (UnityEngine.Input.GetKeyDown) for the F8 debug inject hotkey. -->
+    <!-- Legacy Input (UnityEngine.Input) for the placement cursor — left-click to place,
+         Esc / right-click to cancel (CustomAsteroidPlacementController). -->
     <Reference Include="UnityEngine.InputLegacyModule">
       <HintPath>$(SPZ2_PATH)\UnityEngine.InputLegacyModule.dll</HintPath>
       <Private>False</Private>
@@ -135,6 +168,13 @@
     <Publicize Include="SPZGameAssembly" />
     <Publicize Include="Game.Content.Features" />
     <Publicize Include="Game.Content" />
+    <!-- Phase 2 UI: construct PlacementToolbarElementData / reach toolbar element-data members. -->
+    <Publicize Include="Game.Orchestration" />
+    <!-- Phase 2 placement: MapSuperChunk (here, not SPZGameAssembly) keeps its resource
+         list + GC lookup + type cache private. We add a resource source IN PLACE (rather
+         than rebuilding the chunk, which would drop its island/platform registrations —
+         the 2-arg ctor starts _Islands empty), so we need those fields. -->
+    <Publicize Include="Game.Core.Map" />
   </ItemGroup>
 
   <ItemGroup>
