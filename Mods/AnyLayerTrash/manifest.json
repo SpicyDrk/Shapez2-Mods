@@ -1,7 +1,7 @@
 {
   "Version": "0.1.0",
   "Title": "Any Layer Trash",
-  "Description": "Replaces the vanilla Trash building with a 1x1xN pillar that accepts belt input on every layer x every side. No more dragging shapes down to layer 1 before trashing them. Hijacks the vanilla building so existing trash placements in saves inherit the new behavior automatically.",
+  "Description": "Adds an 'Any Layer Trash' variant alongside the vanilla Trash building (flip while placing to select it, like the cutter/stacker variants). Placing it drops a trash on every layer of the tile in one click, so you can trash shapes on any layer without dragging them down to layer 1 first. The original Trash building is left completely unchanged.",
   "Author": "Dork",
   "SavedModVersionCompabilityRangeWithSelf": "*",
   "GameVersionSupportRange": "*",

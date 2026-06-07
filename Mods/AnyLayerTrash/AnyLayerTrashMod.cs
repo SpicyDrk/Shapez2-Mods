@@ -6,32 +6,32 @@ using ILogger = Core.Logging.ILogger;
 namespace AnyLayerTrash
 {
     /// <summary>
-    /// AnyLayerTrash entry point — ghost-spawn approach (D5 in INTENT,
-    /// PLAN-P01-006).
+    /// AnyLayerTrash entry point — coexist redesign (2026-06-06).
     ///
     /// <para>
-    /// Wires the <see cref="TrashTrioRewirer"/> as a three-faced rewirer
-    /// (buildings + simulation systems + prediction systems) so a single shared
-    /// <see cref="TrashTrioState"/> can capture the vanilla trash group id and
-    /// register matching observers on both sides. Task 1 of PLAN-P01-006 is
-    /// diagnostic-only — the observer logs ADD / REM events but does not yet
-    /// mutate the map.
+    /// The original vanilla Trash building is left untouched. A CLONE of it is
+    /// registered as a second variant ("Any Layer Trash") in the same trash group
+    /// via <see cref="TrashVariantRegistrar"/> — reachable in the build menu through
+    /// the placement flip key, the same way the cutter/stacker variants are. The
+    /// modded variant never lands on the map: <see cref="TrashActionInterceptor"/>
+    /// swaps it for a column of plain vanilla trash on every layer at commit time,
+    /// so it needs no simulation wiring and existing trash placements are unaffected.
     /// </para>
     ///
     /// <para>
-    /// The pillar-approach source files (<see cref="TrashHijackRewirer"/>,
+    /// The earlier hijack/ghost-spawn source files (<c>TrashTrioRewirer</c>,
+    /// <c>TrashTrioObserver</c>, <c>TrashTrioMapSpawner</c>, <c>TrashHijackRewirer</c>,
     /// <c>PredictionSimConnectorBypass</c>, <c>TrashSystemAnchorExpander</c>,
-    /// <c>TrashSystemProbes</c>) stay in the repo as a reference catalogue —
-    /// they document <c>TrashSystem</c> internals and the MonoMod cyclic-shim
-    /// pattern. They are not registered at runtime. See
-    /// <c>.oes/PILLAR-RETROSPECTIVE.md</c> for the full chain of engine walls.
+    /// <c>TrashSystemProbes</c>) stay in the repo as a reference catalogue — they
+    /// document <c>TrashSystem</c> internals and the MonoMod cyclic-shim pattern.
+    /// They are not registered at runtime.
     /// </para>
     /// </summary>
     [UsedImplicitly]
     public class AnyLayerTrashMod : IMod
     {
         private readonly ILogger _logger;
-        private readonly RewirerHandle _trioHandle;
+        private readonly RewirerHandle _registrarHandle;
         private readonly TrashActionInterceptor _actionInterceptor;
 
         public AnyLayerTrashMod(ILogger logger)
@@ -39,44 +39,32 @@ namespace AnyLayerTrash
             _logger = logger;
 
             var state = new TrashTrioState();
-            var trioRewirer = new TrashTrioRewirer(logger, state);
 
-            // GameRewirers.AddRewirer stores the instance once and the various
-            // interceptors (BuildingsInterceptor, SimulationSystemsInterceptor,
-            // PredictionSystemsInterceptor) each pull it via
-            // RewirerProvider.RewirersOfType<T>() — so a single registration
-            // covers all three interfaces our rewirer implements.
-            //
-            // TrashTrioRewirer.ModifyGameBuildings still captures the vanilla
-            // trash variant ids into the shared state (the map spawner reuses
-            // them to filter). Its sim/prediction observers are now diagnostic
-            // only — the authoritative ghost-spawn lives in TrashTrioMapSpawner
-            // (PLAN-P01-007), which writes to the real IMapModel instead of the
-            // simulator's downstream layout.
-            _trioHandle = GameRewirers.AddRewirer(trioRewirer);
+            // Registrar clones the vanilla trash default into the modded "Any Layer
+            // Trash" variant, cross-links the two as a flip pair, and captures the
+            // vanilla group id / variant ids / default definition into the shared
+            // state. It implements both ISimulationSystemsRewirer and
+            // IPredictionSystemsRewirer; a single AddRewirer registration covers both
+            // (the interceptors pull it via RewirerProvider.RewirersOfType<T>()).
+            var registrar = new TrashVariantRegistrar(state, logger);
+            _registrarHandle = GameRewirers.AddRewirer(registrar);
 
-            // PLAN-P03-001: the trio is created/deleted by EXPANDING the player's
-            // ActionModifyBuildings payload (TrashActionInterceptor), so undo/redo
-            // and batch/platform deletes treat all three as ONE undoable
-            // transaction. This SUPERSEDES the event-driven TrashTrioMapSpawner
-            // (PLAN-P01-007), which mutated the map outside any PlayerAction —
-            // invisible to undo and racing the engine's batch-delete loop.
-            // TrashTrioMapSpawner is no longer registered (kept as a reference
-            // catalogue). TrashTrioRewirer.ModifyGameBuildings still runs to feed
-            // the interceptor's trash-variant filter via the shared state.
+            // Interceptor watches player actions: placing the modded variant stamps a
+            // vanilla trash column across all layers (one undoable transaction);
+            // vanilla trash placements pass straight through.
             _actionInterceptor = new TrashActionInterceptor(state, logger);
             _actionInterceptor.Install();
 
             _logger.Info?.Log(
-                "[AnyLayerTrash] mod loaded — trio rides the player action (PLAN-P03-001). " +
-                "Placing a trash expands the action to place vanilla trashes on the other layers {0,1,2}; " +
-                "deleting any expands it to delete all three — one undoable transaction (undo/redo + " +
-                "platform-delete safe). Activity logs to [AnyLayerTrash:action]. Event-driven map spawner retired.");
+                "[AnyLayerTrash] mod loaded — adds an 'Any Layer Trash' variant to the trash group " +
+                "(flip while placing to select it). Placing it stamps vanilla trash on every layer " +
+                "{0,1,2} as one undoable transaction; the original Trash building is unchanged. " +
+                "Activity logs to [AnyLayerTrash:variant] and [AnyLayerTrash:action].");
         }
 
         public void Dispose()
         {
-            GameRewirers.RemoveRewirer(_trioHandle);
+            GameRewirers.RemoveRewirer(_registrarHandle);
             _actionInterceptor.Dispose();
         }
     }

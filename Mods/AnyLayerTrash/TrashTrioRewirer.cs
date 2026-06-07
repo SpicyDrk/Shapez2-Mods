@@ -24,6 +24,27 @@ namespace AnyLayerTrash
         public bool TrashGroupCaptured;
         public BuildingDefinitionGroupId TrashGroupId;
         public readonly HashSet<BuildingDefinitionId> VanillaTrashVariantIds = new();
+
+        // --- Coexist redesign (2026-06-06) ---
+        // We no longer hijack vanilla trash. Instead a CLONE of the vanilla trash
+        // definition is registered as a second variant in the trash group (the
+        // placement "flip" key cycles to it, like a mirror variant). Selecting it
+        // and placing stamps a vanilla-trash COLUMN on every layer; the modded
+        // variant itself never lands (TrashActionInterceptor swaps it at commit),
+        // so it needs no simulation wiring. Vanilla trash stays 100% vanilla.
+
+        // Id of the modded "Any Layer Trash" variant — the TRIGGER the interceptor
+        // watches for on placement. Assigned once by TrashVariantRegistrar.
+        public BuildingDefinitionId? ModdedTrashVariantId;
+
+        // The vanilla trash default definition the interceptor STAMPS on every
+        // layer when the modded variant is placed. Re-captured per game-data
+        // rebuild (each rebuild makes a fresh GameBuildings / trash group).
+        public IBuildingDefinition? VanillaTrashDefault;
+
+        // True once the modded variant has been cloned into the current
+        // GameBuildings' trash group (idempotency guard per rebuild).
+        public bool ModdedVariantRegistered;
     }
 
     /// <summary>
