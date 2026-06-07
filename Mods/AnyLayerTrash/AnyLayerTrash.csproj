@@ -1,14 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    AnyLayerTrash — replaces the vanilla Trash building with a 1x1xN pillar
-    that accepts belt input on every layer x every side. Phase P01 is the
-    scaffold + hijack rewirer; everything else stays vanilla (mesh, sound,
-    sim semantics, toolbar entry).
-
-    Lean csproj: no Unity rendering deps, no AssimpNet (no custom mesh load),
-    no Game.Core.Rendering. We only need Shifter hijack hooks + the building /
-    connector / footprint types from the game's data layer.
+    AnyLayerTrash — placing a vanilla Trash building fills every layer of the
+    tile with trash, and deleting one removes the whole column. Implemented by
+    expanding the player's own ActionModifyBuildings payload (a MonoMod detour on
+    PlayerAction.TryExecute_INTERNAL) so it stays one undoable transaction; the
+    trash placed is plain vanilla trash, so nothing mod-specific is serialized.
 
     Inherits TargetFramework / LangVersion / Nullable from the workspace
     Directory.Build.props.
