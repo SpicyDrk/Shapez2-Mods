@@ -129,4 +129,21 @@
     </None>
   </ItemGroup>
 
+  <!--
+    Steam Workshop publish. Uploads the built mod folder ($(OutputPath)) plus
+    Steam/preview.png as the listing/menu icon, driven by Steam/SteamPublish.sh
+    (which fills Steam/base.vdf). Requires: steamcmd on PATH, a POSIX shell
+    (Git Bash), and the STEAM_USERNAME env var set to your Steam login.
+
+      $env:STEAM_USERNAME = "your_steam_login"
+      dotnet msbuild .\AnyLayerTrash.csproj -t:SteamPublish -v:detailed
+
+    The Steam/ folder is publish tooling only — it is NOT part of the deployed
+    mod (nothing here is copied to $(OutputPath)).
+  -->
+  <Target Name="SteamPublish" DependsOnTargets="Build">
+    <Exec Command="sh ./Steam/SteamPublish.sh &quot;$([System.IO.Path]::GetFullPath('$(OutputPath)'))&quot;"
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
 </Project>

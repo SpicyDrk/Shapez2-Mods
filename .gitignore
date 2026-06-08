@@ -60,6 +60,11 @@ _ReSharper.*
 krafs.log
 **/logs
 
+# Steam Workshop publish temp — SteamPublish.sh fills this with absolute
+# local paths (incl. your Windows username) before deleting it. Ignore so an
+# interrupted publish can't leak local paths into a public repo.
+**/Steam/*.tmp.vdf
+
 # ────────────────────────────────────────────────────────────────
 # OS cruft
 # ────────────────────────────────────────────────────────────────
