@@ -16,7 +16,25 @@
 
 set -euo pipefail
 
-CONTENT_PATH=$1
+# Resolve the content folder (the built mod dir). Use arg 1 if given (e.g. the
+# csproj target passes $(OutputPath)); otherwise derive it from SPZ2_PERSISTENT
+# + this project's folder name, so no long path has to be typed/pasted.
+MOD_NAME=$(basename "$PWD")
+SRC_CONTENT="${1:-$SPZ2_PERSISTENT/mods/$MOD_NAME}"
+
+# Validate BEFORE touching Steam: a missing/empty folder is what causes
+# steamcmd's "Build for workshop item has no content" failure.
+if [ ! -d "$SRC_CONTENT" ] || [ -z "$(ls -A "$SRC_CONTENT" 2>/dev/null)" ]; then
+	echo "ERROR: content folder missing or empty:" >&2
+	echo "       $SRC_CONTENT" >&2
+	echo "       Build the mod first (dotnet build) so it deploys to the mods folder." >&2
+	exit 1
+fi
+echo "Content source: $SRC_CONTENT"
+
+# Normalise to a Windows path via cygpath (handles POSIX or Windows input,
+# trailing slash or not — avoids backslash-quoting pitfalls).
+CONTENT_PATH=$(cygpath -w "$SRC_CONTENT")
 
 # Steam account to publish under. Fail fast if it isn't set.
 STEAM_USER="${STEAM_USERNAME:?Set STEAM_USERNAME to your Steam login before publishing}"
@@ -47,9 +65,23 @@ echo "-----------------------------"
 
 TMP_VDF=$CURRENT_DIR\\Steam\\base.tmp.vdf
 
+# Locate steamcmd: explicit $STEAMCMD wins, else PATH, else the standard
+# Windows install dir.
+STEAMCMD_BIN="${STEAMCMD:-}"
+if [ -z "$STEAMCMD_BIN" ]; then
+	if command -v steamcmd >/dev/null 2>&1; then
+		STEAMCMD_BIN="steamcmd"
+	elif [ -f "/c/Program Files (x86)/steamcmd/steamcmd.exe" ]; then
+		STEAMCMD_BIN="/c/Program Files (x86)/steamcmd/steamcmd.exe"
+	else
+		echo "ERROR: steamcmd not found. Add it to PATH or set STEAMCMD=/path/to/steamcmd.exe" >&2
+		exit 1
+	fi
+fi
+
 # Authenticate + upload. steamcmd will prompt for password / Steam Guard
 # the first time; after that the session is cached.
-steamcmd +login "$STEAM_USER" +workshop_build_item "$TMP_VDF" +quit
+"$STEAMCMD_BIN" +login "$STEAM_USER" +workshop_build_item "$TMP_VDF" +quit
 
 # steamcmd writes the assigned id back into the temp vdf. Grab it...
 FILE_ID=$(grep '"publishedfileid"' Steam\\base.tmp.vdf | sed 's/.*"publishedfileid"[ \t]*"\([0-9]\+\)".*/\1/')

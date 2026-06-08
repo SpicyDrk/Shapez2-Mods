@@ -1,10 +1,10 @@
 "workshopitem"
 {
 	"appid" "2162800"
-	"publishedfileid" "0"
+	"publishedfileid" "3740755736"
 	"contentfolder" "${CONTENT_PATH}"
 	"previewfile" "${PREVIEW_IMG}"
 	"visibility" "3"
 	"title" "Any Layer Trash"
-	"description" "Placing a Trash building fills every layer of the tile with trash, and deleting one clears the whole column. Delete shapes on any layer without dragging them down to layer 1 first.\n\nRequires Shapez Shifter."
+	"description" "Updates the trash to accept any layer input.\n\nRequires Shapez Shifter."
 }
