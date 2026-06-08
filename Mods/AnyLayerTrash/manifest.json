@@ -1,12 +1,12 @@
 {
   "Version": "1.0.0",
   "Title": "Any Layer Trash",
-  "Description": "Delete shapes on any layer without dragging them down to layer 1 first. With this mod, placing a Trash building automatically fills every layer of that tile with trash, and deleting any one clears the whole column — as a single undoable action that also works with area-drag, blueprints, and platform deletes. Layers already occupied by other buildings are skipped, and only plain vanilla trash is placed, so nothing mod-specific is written to your save (remove the mod any time and your trash stays as ordinary trash).",
+  "Description": "Changes the trash bin to accept any layer",
   "Author": "Dork",
   "SavedModVersionCompabilityRangeWithSelf": "*",
   "GameVersionSupportRange": "*",
-  "AffectsSaveGames": false,
-  "DisablesAchievements": false,
+  "AffectsSaveGames": true,
+  "DisablesAchievements": true,
   "Conflicts": [],
   "Assemblies": [
     "AnyLayerTrash.dll"
