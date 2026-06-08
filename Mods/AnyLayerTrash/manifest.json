@@ -6,7 +6,7 @@
   "SavedModVersionCompabilityRangeWithSelf": "*",
   "GameVersionSupportRange": "*",
   "AffectsSaveGames": true,
-  "DisablesAchievements": true,
+  "DisablesAchievements": false,
   "Conflicts": [],
   "Assemblies": [
     "AnyLayerTrash.dll"
