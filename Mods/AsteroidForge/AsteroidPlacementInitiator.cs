@@ -3,7 +3,7 @@ using Core.Events;
 using Game.Core.Coordinates;
 using ILogger = Core.Logging.ILogger;
 
-namespace AsteroidMaker
+namespace AsteroidForge
 {
     /// <summary>
     /// PLAN-P02-001 Task 1 — a CUSTOM <see cref="IPlacementInitiator"/> that backs our
@@ -61,7 +61,7 @@ namespace AsteroidMaker
 
         private void StartPlacement()
         {
-            _logger.Info?.Log($"[AsteroidMaker:ui] '{_label}' selected (RequestStartPlacement).");
+            _logger.Info?.Log($"[AsteroidForge:ui] '{_label}' selected (RequestStartPlacement).");
             _isPlacing = true;
             _onStarts.Invoke();
 
@@ -71,7 +71,7 @@ namespace AsteroidMaker
             }
             catch (Exception ex)
             {
-                _logger.Error?.Log($"[AsteroidMaker:ui] '{_label}' handler threw (non-fatal): {ex}");
+                _logger.Error?.Log($"[AsteroidForge:ui] '{_label}' handler threw (non-fatal): {ex}");
             }
 
             // End immediately — the engine shouldn't believe a placement is in progress; our own

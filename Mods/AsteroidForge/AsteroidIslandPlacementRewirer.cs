@@ -3,7 +3,7 @@ using ShapezShifter;
 using ShapezShifter.Hijack;
 using ILogger = Core.Logging.ILogger;
 
-namespace AsteroidMaker
+namespace AsteroidForge
 {
     /// <summary>
     /// PLAN-P02-001 Task 1 — registers our <see cref="AsteroidPlacementInitiator"/>
@@ -59,13 +59,13 @@ namespace AsteroidMaker
                 {
                     _logged = true;
                     _logger.Info?.Log(
-                        $"[AsteroidMaker:ui] registered placement initiators '{PlacerId}' (id={id}) + " +
+                        $"[AsteroidForge:ui] registered placement initiators '{PlacerId}' (id={id}) + " +
                         $"'{RemovePlacerId}' (id={removeId}).");
                 }
             }
             catch (Exception ex)
             {
-                _logger.Error?.Log($"[AsteroidMaker:ui] ModifyIslandPlacers threw (non-fatal): {ex}");
+                _logger.Error?.Log($"[AsteroidForge:ui] ModifyIslandPlacers threw (non-fatal): {ex}");
             }
         }
 

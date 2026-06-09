@@ -7,15 +7,15 @@ using ShapezShifter.Textures;
 using UnityEngine;
 using ILogger = Core.Logging.ILogger;
 
-namespace AsteroidMaker
+namespace AsteroidForge
 {
     /// <summary>
-    /// AsteroidMaker entry point — author a shape via shape code and place mineable
+    /// AsteroidForge entry point — author a shape via shape code and place mineable
     /// custom-shape asteroids on the space map.
     ///
     /// <para>The flow (PLAN-P02-001): a <see cref="AsteroidCaptureRewirer"/> grabs the
     /// live space-map <c>ResourcesMap</c> at session init; a <see cref="AsteroidToolbarRewirer"/>
-    /// adds a "Asteroid Maker" entry under the space-platforms build menu, bound to a custom
+    /// adds a "Asteroid Forge" entry under the space-platforms build menu, bound to a custom
     /// <see cref="AsteroidPlacementInitiator"/> registered by
     /// <see cref="AsteroidIslandPlacementRewirer"/>; selecting it opens the
     /// <see cref="AsteroidAuthoringDialog"/> (shape-code entry + canonical validation),
@@ -27,7 +27,7 @@ namespace AsteroidMaker
     /// vanilla space save loads untouched.</para>
     /// </summary>
     [UsedImplicitly]
-    public class AsteroidMakerMod : IMod
+    public class AsteroidForgeMod : IMod
     {
         private readonly ILogger _logger;
         private readonly AsteroidUiState _uiState;
@@ -44,7 +44,7 @@ namespace AsteroidMaker
         private readonly RewirerHandle _persistTickHandle;
         private readonly AsteroidUndoHook _undoHook;
 
-        public AsteroidMakerMod(ILogger logger)
+        public AsteroidForgeMod(ILogger logger)
         {
             _logger = logger;
 
@@ -52,9 +52,9 @@ namespace AsteroidMaker
 
             // Build-menu entry icons (placeholder art under Resources/, swappable). Loaded once here;
             // a missing/unreadable PNG just leaves the entry icon-less — never blocks load.
-            ModFolderLocator resources = ModDirectoryLocator.CreateLocator<AsteroidMakerMod>().SubLocator("Resources");
-            _uiState.PlaceIcon = TryLoadSprite(resources, "AsteroidMaker_Icon.png", logger);
-            _uiState.RemoveIcon = TryLoadSprite(resources, "AsteroidMaker_Remove_Icon.png", logger);
+            ModFolderLocator resources = ModDirectoryLocator.CreateLocator<AsteroidForgeMod>().SubLocator("Resources");
+            _uiState.PlaceIcon = TryLoadSprite(resources, "AsteroidForge_Icon.png", logger);
+            _uiState.RemoveIcon = TryLoadSprite(resources, "AsteroidForge_Remove_Icon.png", logger);
 
             // Save/reload persistence (PLAN-P03-001): owns a per-save JSON registry of placed
             // asteroids and re-injects them on load (open-space asteroids aren't in the vanilla
@@ -71,10 +71,10 @@ namespace AsteroidMaker
 
             // Two space-map build-menu entries, each backed by a custom IPlacementInitiator
             // registered into the platform-island placement system; a toolbar entry binds to each id.
-            //  - "Asteroid Maker"        → opens the shape-code authoring dialog (then arms placement).
+            //  - "Asteroid Forge"        → opens the shape-code authoring dialog (then arms placement).
             //  - "Remove Asteroid" → arms delete mode (click one of ours to remove it).
             var authoringDialog = new AsteroidAuthoringDialog(_uiState, logger);
-            var placeInitiator = new AsteroidPlacementInitiator(logger, "Asteroid Maker", authoringDialog.Open);
+            var placeInitiator = new AsteroidPlacementInitiator(logger, "Asteroid Forge", authoringDialog.Open);
             var removeInitiator = new AsteroidPlacementInitiator(logger, "Remove Asteroid", ArmDelete);
 
             // Capture the HUD dialog stack (no DI/global access from an IMod) so the dialog
@@ -112,9 +112,9 @@ namespace AsteroidMaker
             _placementPreview = new AsteroidPlacementPreview(_uiState, logger);
 
             _logger.Info?.Log(
-                "[AsteroidMaker] mod loaded. Registered persistence (save-data + settle tick) + capture + " +
+                "[AsteroidForge] mod loaded. Registered persistence (save-data + settle tick) + capture + " +
                 "island-placement + toolbar + placement-cursor + undo rewirers + dialog-stack hook. Select the " +
-                "'Asteroid Maker' build-menu entry → enter a shape code → click to place the default patch or " +
+                "'Asteroid Forge' build-menu entry → enter a shape code → click to place the default patch or " +
                 "drag a box to size it; 'Remove Asteroid' deletes one; Ctrl+Z / Ctrl+Y undo/redo your " +
                 "placements; placed asteroids persist across save/reload.");
         }
@@ -125,7 +125,7 @@ namespace AsteroidMaker
         {
             _uiState.PlacementArmed = false;
             _uiState.DeleteArmed = true;
-            _logger.Info?.Log("[AsteroidMaker:delete] 'Remove Asteroid' selected — delete mode armed.");
+            _logger.Info?.Log("[AsteroidForge:delete] 'Remove Asteroid' selected — delete mode armed.");
         }
 
         // Load a build-menu icon from Resources/ as a Unity Sprite (Shifter's FileTextureLoader).
@@ -137,14 +137,14 @@ namespace AsteroidMaker
                 string path = resources.SubPath(file);
                 if (!System.IO.File.Exists(path))
                 {
-                    logger.Warning?.Log($"[AsteroidMaker:ui] icon '{file}' not found at {path}; entry will be icon-less.");
+                    logger.Warning?.Log($"[AsteroidForge:ui] icon '{file}' not found at {path}; entry will be icon-less.");
                     return null;
                 }
                 return FileTextureLoader.LoadTextureAsSprite(path, out _);
             }
             catch (Exception ex)
             {
-                logger.Warning?.Log($"[AsteroidMaker:ui] failed to load icon '{file}' (non-fatal): {ex.Message}");
+                logger.Warning?.Log($"[AsteroidForge:ui] failed to load icon '{file}' (non-fatal): {ex.Message}");
                 return null;
             }
         }

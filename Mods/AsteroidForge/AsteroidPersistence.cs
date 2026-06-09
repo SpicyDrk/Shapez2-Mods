@@ -6,7 +6,7 @@ using ShapezShifter.Flow;
 using ShapezShifter.Hijack;
 using ILogger = Core.Logging.ILogger;
 
-namespace AsteroidMaker
+namespace AsteroidForge
 {
     /// <summary>PLAN-P03-001 Task 1 — JSON-serializable save blob: the placed custom asteroids.</summary>
     public sealed class AsteroidSaveData
@@ -74,7 +74,7 @@ namespace AsteroidMaker
             _ui = ui;
             _logger = logger;
             SaveRewirer = new ModSaveDataRewirer<AsteroidSaveData>(
-                "asteroid-maker", new AsteroidSaveDataFactory(), logger);
+                "asteroid-forge", new AsteroidSaveDataFactory(), logger);
             SaveRewirer.AfterSaveDataDeserialized.Register(OnAfterLoad);
             SettleTick = new AsteroidPersistenceTick(this);
         }
@@ -91,7 +91,7 @@ namespace AsteroidMaker
             foreach (ChunkVector o in offsets) rec.Tiles.Add(new TileOffset { X = o.x, Y = o.y });
             Data.Asteroids.Add(rec);
             _logger.Info?.Log(
-                $"[AsteroidMaker:save] recorded '{code}' at ({origin.x},{origin.y},{origin.z}) " +
+                $"[AsteroidForge:save] recorded '{code}' at ({origin.x},{origin.y},{origin.z}) " +
                 $"({rec.Tiles.Count} tiles); total tracked={Data.Asteroids.Count}.");
             return rec;
         }
@@ -145,7 +145,7 @@ namespace AsteroidMaker
             _stableFrames = 0;
             int count = data?.Asteroids?.Count ?? 0;
             _logger.Info?.Log(
-                $"[AsteroidMaker:save] loaded {count} tracked asteroid(s); re-injecting over the settle window.");
+                $"[AsteroidForge:save] loaded {count} tracked asteroid(s); re-injecting over the settle window.");
             TryReinject();
         }
 
@@ -196,7 +196,7 @@ namespace AsteroidMaker
             if (injected > 0 || failed > 0)
             {
                 _logger.Info?.Log(
-                    $"[AsteroidMaker:save] re-inject pass: {injected} added, {present} present, {failed} failed " +
+                    $"[AsteroidForge:save] re-inject pass: {injected} added, {present} present, {failed} failed " +
                     $"(of {data.Asteroids.Count}).");
             }
 

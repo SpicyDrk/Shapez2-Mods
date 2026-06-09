@@ -1,0 +1,9 @@
+{
+  "solution": {
+    "path": "Shapez2Mods.sln",
+    "projects": [
+      "Mods\\AsteroidForge\\AsteroidForge.csproj",
+      "Tests\\AsteroidForge.Tests\\AsteroidForge.Tests.csproj"
+    ]
+  }
+}

@@ -5,7 +5,7 @@ using Unity.Core.Prefabs;
 using UnityEngine;
 using ILogger = Core.Logging.ILogger;
 
-namespace AsteroidMaker
+namespace AsteroidForge
 {
     /// <summary>
     /// PLAN-P02-001 Task 2 — captures the HUD's <c>IHUDDialogStack</c> so the mod can open
@@ -31,12 +31,12 @@ namespace AsteroidMaker
                 types: new[] { typeof(Transform), typeof(IPrefabInstanceProvider), typeof(ILogger) },
                 modifiers: null)
                 ?? throw new InvalidOperationException(
-                    "AsteroidMaker: failed to find HUDDialogStack(Transform, IPrefabInstanceProvider, ILogger) ctor.");
+                    "AsteroidForge: failed to find HUDDialogStack(Transform, IPrefabInstanceProvider, ILogger) ctor.");
 
             CtorDelegate detour = CtorPostfix;
             _hook = new Hook(ctor, detour);
 
-            logger.Info?.Log("[AsteroidMaker:ui] dialog-stack capture hook installed on HUDDialogStack ctor.");
+            logger.Info?.Log("[AsteroidForge:ui] dialog-stack capture hook installed on HUDDialogStack ctor.");
         }
 
         public void Dispose()
@@ -61,7 +61,7 @@ namespace AsteroidMaker
             orig(self, parent, provider, logger);
 
             _ui.DialogStack = self;
-            _logger.Info?.Log("[AsteroidMaker:ui] captured IHUDDialogStack (authoring dialog is now available).");
+            _logger.Info?.Log("[AsteroidForge:ui] captured IHUDDialogStack (authoring dialog is now available).");
         }
     }
 }

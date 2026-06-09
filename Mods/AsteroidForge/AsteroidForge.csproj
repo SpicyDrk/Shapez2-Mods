@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    AsteroidMaker — sandbox/creative mod that places custom-shape MINEABLE
+    AsteroidForge — sandbox/creative mod that places custom-shape MINEABLE
     asteroids onto the space map. The player authors a shape via shape code in a
     build-menu dialog, then clicks the space map to place; a vanilla extractor over
     the placed asteroid outputs that exact shape.

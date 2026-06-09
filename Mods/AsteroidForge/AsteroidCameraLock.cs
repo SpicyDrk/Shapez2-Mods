@@ -3,7 +3,7 @@ using System.Reflection;
 using MonoMod.RuntimeDetour;
 using ILogger = Core.Logging.ILogger;
 
-namespace AsteroidMaker
+namespace AsteroidForge
 {
     /// <summary>
     /// PLAN-P04-001 (UAT fix) — locks the space-map mouse-drag pan while a custom-asteroid
@@ -35,12 +35,12 @@ namespace AsteroidMaker
                 "Update_MouseMovement",
                 BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
                 ?? throw new InvalidOperationException(
-                    "AsteroidMaker: failed to find CameraController.Update_MouseMovement(InputDownstreamContext).");
+                    "AsteroidForge: failed to find CameraController.Update_MouseMovement(InputDownstreamContext).");
 
             PanDelegate detour = PanPrefix;
             _hook = new Hook(method, detour);
 
-            logger.Info?.Log("[AsteroidMaker:place] camera-pan lock installed (mouse-drag pan suppressed while placement is armed).");
+            logger.Info?.Log("[AsteroidForge:place] camera-pan lock installed (mouse-drag pan suppressed while placement is armed).");
         }
 
         public void Dispose() => _hook.Dispose();

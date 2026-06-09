@@ -7,10 +7,10 @@ using ShapezShifter.Hijack;
 using UnityEngine;
 using ILogger = Core.Logging.ILogger;
 
-namespace AsteroidMaker
+namespace AsteroidForge
 {
     /// <summary>
-    /// PLAN-P02-001 Task 1 — inserts a "Asteroid Maker" entry into the space-map build
+    /// PLAN-P02-001 Task 1 — inserts a "Asteroid Forge" entry into the space-map build
     /// toolbar, bound to the <c>PlacementInitiatorId</c> registered by
     /// <see cref="AsteroidIslandPlacementRewirer"/>.
     ///
@@ -33,7 +33,7 @@ namespace AsteroidMaker
         // Title-key substring of the space-map "Space Platforms" category, as seen in the
         // live toolbar tree: LazyText[island-toolbar.category-RegularPlatform.title].
         private const string SpacePlatformsCategoryKey = "category-RegularPlatform";
-        private const string EntryTitle = "Asteroid Maker";
+        private const string EntryTitle = "Asteroid Forge";
         private const string RemoveEntryTitle = "Remove Asteroid";
 
         private readonly AsteroidUiState _ui;
@@ -57,7 +57,7 @@ namespace AsteroidMaker
                     {
                         _loggedMissing = true;
                         _logger.Warning?.Log(
-                            "[AsteroidMaker:ui] toolbar built before the initiator was registered; " +
+                            "[AsteroidForge:ui] toolbar built before the initiator was registered; " +
                             "entry skipped this pass (will appear once placers are registered).");
                     }
                     return toolbarData;
@@ -89,12 +89,12 @@ namespace AsteroidMaker
                 if ((addedPlace || addedRemove) && !_loggedAdd)
                 {
                     _loggedAdd = true;
-                    _logger.Info?.Log("[AsteroidMaker:ui] inserted 'Asteroid Maker' + 'Remove Asteroid' entries at the end of the Space Platforms category.");
+                    _logger.Info?.Log("[AsteroidForge:ui] inserted 'Asteroid Forge' + 'Remove Asteroid' entries at the end of the Space Platforms category.");
                 }
             }
             catch (Exception ex)
             {
-                _logger.Error?.Log($"[AsteroidMaker:ui] ModifyToolbarData threw (non-fatal): {ex}");
+                _logger.Error?.Log($"[AsteroidForge:ui] ModifyToolbarData threw (non-fatal): {ex}");
             }
 
             return toolbarData;

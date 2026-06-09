@@ -1,15 +1,15 @@
 using System.Text.Json;
 
-namespace AsteroidMaker.Tests;
+namespace AsteroidForge.Tests;
 
 /// <summary>
-/// Smoke check for the AsteroidMaker mod's <c>manifest.json</c>. Mirrors
+/// Smoke check for the AsteroidForge mod's <c>manifest.json</c>. Mirrors
 /// Tests/AnyLayerTrash.Tests/Program.cs — same five manifest assertions, different
 /// <c>ModName</c>. Exits 0 on all-pass, 1 otherwise.
 /// </summary>
 public static class Program
 {
-    private const string ModName = "AsteroidMaker";
+    private const string ModName = "AsteroidForge";
 
     private static readonly string[] RequiredFields =
     {

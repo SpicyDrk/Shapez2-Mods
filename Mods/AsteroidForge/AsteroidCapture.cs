@@ -4,7 +4,7 @@ using Game.Core.Simulation;
 using ShapezShifter.Hijack;
 using ILogger = Core.Logging.ILogger;
 
-namespace AsteroidMaker
+namespace AsteroidForge
 {
     /// <summary>
     /// Captures the live space-map <c>ResourcesMap</c> for the placement flow.
@@ -49,14 +49,14 @@ namespace AsteroidMaker
                 {
                     _logged = true;
                     _logger.Info?.Log(
-                        $"[AsteroidMaker:capture] ResourcesMap " +
+                        $"[AsteroidForge:capture] ResourcesMap " +
                         $"{(dependencies.ResourcesMap != null ? "captured" : "NULL")} (mode={dependencies.Mode}). " +
-                        "Select the 'Asteroid Maker' build-menu entry to author + place.");
+                        "Select the 'Asteroid Forge' build-menu entry to author + place.");
                 }
             }
             catch (Exception ex)
             {
-                _logger.Error?.Log($"[AsteroidMaker:capture] capture threw (non-fatal): {ex}");
+                _logger.Error?.Log($"[AsteroidForge:capture] capture threw (non-fatal): {ex}");
             }
         }
 

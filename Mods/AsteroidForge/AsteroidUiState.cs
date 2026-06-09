@@ -3,7 +3,7 @@ using Game.Core.Coordinates;
 using Game.Core.Simulation;
 using UnityEngine;
 
-namespace AsteroidMaker
+namespace AsteroidForge
 {
     /// <summary>
     /// Shared state for the Phase-2 authoring + placement UI flow, threaded between

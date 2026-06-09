@@ -6,7 +6,7 @@ using Game.Core.Rendering.Culling;
 using MonoMod.RuntimeDetour;
 using ILogger = Core.Logging.ILogger;
 
-namespace AsteroidMaker
+namespace AsteroidForge
 {
     /// <summary>
     /// PLAN-P04-001 (UAT fix, Test 4) — suppresses a vanilla NullReferenceException that fires every
@@ -55,13 +55,13 @@ namespace AsteroidMaker
                 types: new[] { typeof(FrameDrawOptionsNoLOD), typeof(MapCullResult) },
                 modifiers: null)
                 ?? throw new InvalidOperationException(
-                    "AsteroidMaker: failed to find IndependentMapSubDrawer.Draw(FrameDrawOptionsNoLOD, MapCullResult).");
+                    "AsteroidForge: failed to find IndependentMapSubDrawer.Draw(FrameDrawOptionsNoLOD, MapCullResult).");
 
             DrawDelegate detour = DrawPrefix;
             _hook = new Hook(method, detour);
 
             logger.Info?.Log(
-                "[AsteroidMaker:fix] miner-draw guard installed (suppresses the per-frame chained-extraction " +
+                "[AsteroidForge:fix] miner-draw guard installed (suppresses the per-frame chained-extraction " +
                 "NRE on thin/edge custom patches; other sub-drawers untouched).");
         }
 
@@ -110,7 +110,7 @@ namespace AsteroidMaker
                 {
                     _warned = true;
                     _logger.Warning?.Log(
-                        "[AsteroidMaker:fix] suppressed a chained-extraction miner-draw NRE over a custom patch " +
+                        "[AsteroidForge:fix] suppressed a chained-extraction miner-draw NRE over a custom patch " +
                         "(boost chain off a thin patch, or an extractor orphaned after delete). Logged once; mining unaffected.");
                 }
             }

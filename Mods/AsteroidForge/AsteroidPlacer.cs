@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Game.Core.Coordinates;
 using ILogger = Core.Logging.ILogger;
 
-namespace AsteroidMaker
+namespace AsteroidForge
 {
     /// <summary>
     /// PLAN-P02-001 Task 4 / PLAN-P03-001 — adds + removes custom-shape mineable asteroids on the

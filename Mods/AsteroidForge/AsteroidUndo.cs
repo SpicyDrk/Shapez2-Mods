@@ -7,7 +7,7 @@ using ShapezShifter.Hijack;
 using UnityEngine;
 using ILogger = Core.Logging.ILogger;
 
-namespace AsteroidMaker
+namespace AsteroidForge
 {
     /// <summary>
     /// PLAN-P03-001 Task 3 (SC-09) — a session-only undo/redo stack for custom-asteroid
@@ -82,13 +82,13 @@ namespace AsteroidMaker
             {
                 _redo.Push(op);
                 _logger.Info?.Log(
-                    $"[AsteroidMaker:undo] undid {op.Kind} of '{op.Record.Code}' at " +
+                    $"[AsteroidForge:undo] undid {op.Kind} of '{op.Record.Code}' at " +
                     $"({op.Record.X},{op.Record.Y},{op.Record.Z}). undo={_undo.Count} redo={_redo.Count}.");
             }
             else
             {
                 _undo.AddLast(op); // restore on failure so the stack stays consistent
-                _logger.Warning?.Log($"[AsteroidMaker:undo] could not undo {op.Kind} of '{op.Record.Code}'.");
+                _logger.Warning?.Log($"[AsteroidForge:undo] could not undo {op.Kind} of '{op.Record.Code}'.");
             }
             return ok;
         }
@@ -107,13 +107,13 @@ namespace AsteroidMaker
             {
                 _undo.AddLast(op);
                 _logger.Info?.Log(
-                    $"[AsteroidMaker:undo] redid {op.Kind} of '{op.Record.Code}' at " +
+                    $"[AsteroidForge:undo] redid {op.Kind} of '{op.Record.Code}' at " +
                     $"({op.Record.X},{op.Record.Y},{op.Record.Z}). undo={_undo.Count} redo={_redo.Count}.");
             }
             else
             {
                 _redo.Push(op);
-                _logger.Warning?.Log($"[AsteroidMaker:undo] could not redo {op.Kind} of '{op.Record.Code}'.");
+                _logger.Warning?.Log($"[AsteroidForge:undo] could not redo {op.Kind} of '{op.Record.Code}'.");
             }
             return ok;
         }
@@ -125,7 +125,7 @@ namespace AsteroidMaker
 
             if (!CanonicalShapeResolver.TryResolve(rec.Code, out ShapeDefinition shape, out string diag))
             {
-                _logger.Warning?.Log($"[AsteroidMaker:undo] cannot re-add — '{rec.Code}' no longer resolves ({diag}).");
+                _logger.Warning?.Log($"[AsteroidForge:undo] cannot re-add — '{rec.Code}' no longer resolves ({diag}).");
                 return false;
             }
 
@@ -135,7 +135,7 @@ namespace AsteroidMaker
 
             if (!AsteroidPlacer.TryAddSource(grm, shape, origin, offsets, _logger, out string addDiag, out _))
             {
-                _logger.Warning?.Log($"[AsteroidMaker:undo] re-add at {origin} failed ({addDiag}).");
+                _logger.Warning?.Log($"[AsteroidForge:undo] re-add at {origin} failed ({addDiag}).");
                 return false;
             }
 
@@ -149,7 +149,7 @@ namespace AsteroidMaker
             var origin = new GlobalChunkCoordinate(rec.X, rec.Y, (short)rec.Z);
             AsteroidPlacer.TryRemoveAt(grm, origin, _logger, out string diag);
             _ui.Persistence?.RemoveRecordExact(rec);
-            _logger.Info?.Log($"[AsteroidMaker:undo] removed source at {origin} ({diag}).");
+            _logger.Info?.Log($"[AsteroidForge:undo] removed source at {origin} ({diag}).");
             return true; // registry is now consistent regardless of whether a live source existed
         }
     }
@@ -192,7 +192,7 @@ namespace AsteroidMaker
             _scheduleRedoHook = HookVoid("ScheduleRedo", ScheduleRedoDetour);
 
             logger.Info?.Log(
-                "[AsteroidMaker:undo] undo/redo router installed (single Ctrl+Z = one reversal; vanilla " +
+                "[AsteroidForge:undo] undo/redo router installed (single Ctrl+Z = one reversal; vanilla " +
                 "first, custom asteroids as the fallback once the engine stack is empty).");
         }
 
@@ -210,7 +210,7 @@ namespace AsteroidMaker
         private static MethodInfo Resolve(string name) =>
             typeof(PlayerActionManager).GetMethod(
                 name, BindingFlags.Instance | BindingFlags.Public, binder: null, Type.EmptyTypes, modifiers: null)
-            ?? throw new InvalidOperationException($"AsteroidMaker: PlayerActionManager.{name}() not found.");
+            ?? throw new InvalidOperationException($"AsteroidForge: PlayerActionManager.{name}() not found.");
 
         private delegate bool CanDelegate(Func<PlayerActionManager, bool> orig, PlayerActionManager self);
         private delegate void SchedDelegate(Action<PlayerActionManager> orig, PlayerActionManager self);
@@ -245,7 +245,7 @@ namespace AsteroidMaker
             }
             catch (Exception ex)
             {
-                _logger.Error?.Log($"[AsteroidMaker:undo] custom {tag} threw (non-fatal): {ex}");
+                _logger.Error?.Log($"[AsteroidForge:undo] custom {tag} threw (non-fatal): {ex}");
                 return true; // treat as handled — don't fall through to a vanilla action
             }
         }

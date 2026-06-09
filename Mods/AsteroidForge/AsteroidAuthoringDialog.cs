@@ -2,7 +2,7 @@ using System;
 using Core.Localization;
 using ILogger = Core.Logging.ILogger;
 
-namespace AsteroidMaker
+namespace AsteroidForge
 {
     /// <summary>
     /// PLAN-P02-001 Task 2 — the shape-code authoring surface. Opens a
@@ -29,7 +29,7 @@ namespace AsteroidMaker
         {
             if (_ui.DialogStack == null)
             {
-                _logger.Warning?.Log("[AsteroidMaker:ui] authoring dialog requested but the dialog stack isn't captured yet.");
+                _logger.Warning?.Log("[AsteroidForge:ui] authoring dialog requested but the dialog stack isn't captured yet.");
                 return;
             }
 
@@ -38,7 +38,7 @@ namespace AsteroidMaker
 #pragma warning disable CS0618 // Globals.Resources — no DI seam from a mod; prefab refs are read-only.
                 HUDDialogSimpleInput dialog = _ui.DialogStack.Show(Globals.Resources.UIDialogSimpleInputPrefab);
 #pragma warning restore CS0618
-                IText title = new RawText("Asteroid Maker");
+                IText title = new RawText("Asteroid Forge");
                 IText description = new RawText(
                     "Enter a shape code (e.g. CrCgCbCy:P-P-P-P-:crcgcbcy). " +
                     "Invalid codes are rejected. Colours, pins (P) and crystals (c) are supported.");
@@ -50,7 +50,7 @@ namespace AsteroidMaker
             }
             catch (Exception ex)
             {
-                _logger.Error?.Log($"[AsteroidMaker:ui] failed to open authoring dialog (non-fatal): {ex}");
+                _logger.Error?.Log($"[AsteroidForge:ui] failed to open authoring dialog (non-fatal): {ex}");
             }
         }
 
@@ -65,19 +65,19 @@ namespace AsteroidMaker
                     _ui.DeleteArmed = false;    // placement + delete modes are mutually exclusive
                     _ui.PlacementArmed = true;  // hand off to the placement controller
                     _logger.Info?.Log(
-                        $"[AsteroidMaker:ui] authored shape accepted: '{_ui.AuthoredCode}' ({diag}). " +
+                        $"[AsteroidForge:ui] authored shape accepted: '{_ui.AuthoredCode}' ({diag}). " +
                         "Placement armed — left-click the space map to place, Esc/right-click to cancel.");
                 }
                 else
                 {
                     _ui.AuthoredShape = null;
-                    _logger.Warning?.Log($"[AsteroidMaker:ui] rejected shape code '{code}' ({diag}).");
+                    _logger.Warning?.Log($"[AsteroidForge:ui] rejected shape code '{code}' ({diag}).");
                     ShowError(code, diag);
                 }
             }
             catch (Exception ex)
             {
-                _logger.Error?.Log($"[AsteroidMaker:ui] confirm handler threw (non-fatal): {ex}");
+                _logger.Error?.Log($"[AsteroidForge:ui] confirm handler threw (non-fatal): {ex}");
             }
         }
 
@@ -95,7 +95,7 @@ namespace AsteroidMaker
             }
             catch (Exception ex)
             {
-                _logger.Error?.Log($"[AsteroidMaker:ui] failed to show invalid-code dialog (non-fatal): {ex}");
+                _logger.Error?.Log($"[AsteroidForge:ui] failed to show invalid-code dialog (non-fatal): {ex}");
             }
         }
     }

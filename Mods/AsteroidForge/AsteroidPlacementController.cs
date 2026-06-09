@@ -7,7 +7,7 @@ using ShapezShifter.Kit;
 using UnityEngine;
 using ILogger = Core.Logging.ILogger;
 
-namespace AsteroidMaker
+namespace AsteroidForge
 {
     /// <summary>
     /// PLAN-P02-001 Task 3 + PLAN-P03-001 Task 2 + PLAN-P04-001 Task 1 — the cursor for both
@@ -81,7 +81,7 @@ namespace AsteroidMaker
             }
             catch (Exception ex)
             {
-                _logger.Error?.Log($"[AsteroidMaker:place] tick threw (non-fatal); disarming: {ex}");
+                _logger.Error?.Log($"[AsteroidForge:place] tick threw (non-fatal); disarming: {ex}");
                 _ui.PlacementArmed = false;
                 _ui.DeleteArmed = false;
                 _dragging = false;
@@ -94,7 +94,7 @@ namespace AsteroidMaker
             {
                 _loggedArm = true;
                 _logger.Info?.Log(
-                    $"[AsteroidMaker:place] placement armed for '{_ui.AuthoredCode}'. " +
+                    $"[AsteroidForge:place] placement armed for '{_ui.AuthoredCode}'. " +
                     "Click to place the default patch, or drag a box to size it; Esc / right-click to cancel.");
             }
 
@@ -103,7 +103,7 @@ namespace AsteroidMaker
                 _ui.PlacementArmed = false;
                 _dragging = false;
                 _ui.DragPreviewActive = false;
-                _logger.Info?.Log("[AsteroidMaker:place] placement cancelled.");
+                _logger.Info?.Log("[AsteroidForge:place] placement cancelled.");
                 return;
             }
 
@@ -116,7 +116,7 @@ namespace AsteroidMaker
             {
                 _dragging = true;
                 _dragAnchor = gc;
-                _logger.Info?.Log($"[AsteroidMaker:place] drag start at {gc} (SC {gc.To_SC()}).");
+                _logger.Info?.Log($"[AsteroidForge:place] drag start at {gc} (SC {gc.To_SC()}).");
             }
 
             // While dragging, publish the live box (anchor → current hover) so the preview drawer can
@@ -146,14 +146,14 @@ namespace AsteroidMaker
             {
                 _loggedArm = true;
                 _logger.Info?.Log(
-                    "[AsteroidMaker:delete] delete armed. Left-click one of your custom asteroids to remove it; " +
+                    "[AsteroidForge:delete] delete armed. Left-click one of your custom asteroids to remove it; " +
                     "Esc / right-click to cancel.");
             }
 
             if (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1))
             {
                 _ui.DeleteArmed = false;
-                _logger.Info?.Log("[AsteroidMaker:delete] delete cancelled.");
+                _logger.Info?.Log("[AsteroidForge:delete] delete cancelled.");
                 return;
             }
 
@@ -178,7 +178,7 @@ namespace AsteroidMaker
             {
                 _haveHover = true;
                 _lastHover = gc;
-                _logger.Info?.Log($"[AsteroidMaker:{tag}] hovering GC {gc} (SC {gc.To_SC()}).");
+                _logger.Info?.Log($"[AsteroidForge:{tag}] hovering GC {gc} (SC {gc.To_SC()}).");
             }
             return true;
         }
@@ -194,7 +194,7 @@ namespace AsteroidMaker
         {
             if (_ui.ResourcesMap is not GameResourcesMap grm)
             {
-                _logger.Error?.Log("[AsteroidMaker:place] no GameResourcesMap captured; cannot place. Disarming.");
+                _logger.Error?.Log("[AsteroidForge:place] no GameResourcesMap captured; cannot place. Disarming.");
                 _ui.PlacementArmed = false;
                 return;
             }
@@ -208,7 +208,7 @@ namespace AsteroidMaker
             // instance, so resolve at the moment of use).
             if (!CanonicalShapeResolver.TryResolve(_ui.AuthoredCode, out ShapeDefinition shape, out string shapeDiag))
             {
-                _logger.Error?.Log($"[AsteroidMaker:place] could not resolve '{_ui.AuthoredCode}' at place-time ({shapeDiag}). Disarming.");
+                _logger.Error?.Log($"[AsteroidForge:place] could not resolve '{_ui.AuthoredCode}' at place-time ({shapeDiag}). Disarming.");
                 _ui.PlacementArmed = false;
                 return;
             }
@@ -240,13 +240,13 @@ namespace AsteroidMaker
                 PlacedAsteroidRecord? placed = _ui.Persistence?.RecordPlacement(anchor, placedOffsets, _ui.AuthoredCode ?? string.Empty);
                 if (placed != null) _ui.Undo?.RecordPlace(placed);
                 _logger.Info?.Log(
-                    $"[AsteroidMaker:place] PLACED '{_ui.AuthoredCode}' ({shapeDiag}) as {footprintDesc} at {anchor} " +
+                    $"[AsteroidForge:place] PLACED '{_ui.AuthoredCode}' ({shapeDiag}) as {footprintDesc} at {anchor} " +
                     $"(world≈{anchor.ToCenter_W()}). {injDiag}. Build a platform + extractor over it to mine the shape.");
             }
             else
             {
                 _logger.Warning?.Log(
-                    $"[AsteroidMaker:place] placement ({footprintDesc}) at {anchor} failed ({injDiag}); still armed — try again.");
+                    $"[AsteroidForge:place] placement ({footprintDesc}) at {anchor} failed ({injDiag}); still armed — try again.");
             }
         }
 
@@ -279,7 +279,7 @@ namespace AsteroidMaker
         {
             if (_ui.ResourcesMap is not GameResourcesMap grm)
             {
-                _logger.Error?.Log("[AsteroidMaker:delete] no GameResourcesMap captured; cannot delete. Disarming.");
+                _logger.Error?.Log("[AsteroidForge:delete] no GameResourcesMap captured; cannot delete. Disarming.");
                 _ui.DeleteArmed = false;
                 return;
             }
@@ -291,7 +291,7 @@ namespace AsteroidMaker
             if (record == null)
             {
                 _logger.Warning?.Log(
-                    $"[AsteroidMaker:delete] {gc} isn't one of your custom asteroids — nothing removed. Still armed.");
+                    $"[AsteroidForge:delete] {gc} isn't one of your custom asteroids — nothing removed. Still armed.");
                 return;
             }
 
@@ -302,14 +302,14 @@ namespace AsteroidMaker
             if (removed)
             {
                 _logger.Info?.Log(
-                    $"[AsteroidMaker:delete] REMOVED custom asteroid '{record.Code}' covering {gc} ({diag}). " +
+                    $"[AsteroidForge:delete] REMOVED custom asteroid '{record.Code}' covering {gc} ({diag}). " +
                     "An extractor over it will stop producing.");
             }
             else
             {
                 // Registry said ours but the live source was already gone — registry now consistent.
                 _logger.Warning?.Log(
-                    $"[AsteroidMaker:delete] registry record for {gc} removed, but no live source was found ({diag}).");
+                    $"[AsteroidForge:delete] registry record for {gc} removed, but no live source was found ({diag}).");
             }
         }
 

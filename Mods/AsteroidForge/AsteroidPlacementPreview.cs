@@ -8,7 +8,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using ILogger = Core.Logging.ILogger;
 
-namespace AsteroidMaker
+namespace AsteroidForge
 {
     /// <summary>
     /// PLAN-P04-001 (drag preview) — draws a translucent rectangle over the tiles a box-drag would
@@ -58,13 +58,13 @@ namespace AsteroidMaker
                 types: new[] { typeof(FrameDrawOptionsNoLOD) },
                 modifiers: null)
                 ?? throw new InvalidOperationException(
-                    "AsteroidMaker: failed to find MapDrawer.Draw(FrameDrawOptionsNoLOD).");
+                    "AsteroidForge: failed to find MapDrawer.Draw(FrameDrawOptionsNoLOD).");
 
             DrawDelegate detour = DrawPrefix;
             _hook = new Hook(method, detour);
 
             logger.Info?.Log(
-                "[AsteroidMaker:preview] drag-preview drawer installed (highlights the box footprint while dragging).");
+                "[AsteroidForge:preview] drag-preview drawer installed (highlights the box footprint while dragging).");
         }
 
         public void Dispose() => _hook.Dispose();
@@ -94,7 +94,7 @@ namespace AsteroidMaker
                 if (!_warned)
                 {
                     _warned = true;
-                    _logger.Warning?.Log($"[AsteroidMaker:preview] drag-preview draw threw (non-fatal, suppressed): {ex}");
+                    _logger.Warning?.Log($"[AsteroidForge:preview] drag-preview draw threw (non-fatal, suppressed): {ex}");
                 }
             }
         }
