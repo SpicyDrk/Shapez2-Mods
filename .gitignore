@@ -65,6 +65,10 @@ krafs.log
 # interrupted publish can't leak local paths into a public repo.
 **/Steam/*.tmp.vdf
 
+# Per-mod design notes — local rationale doc extracted from source comments to
+# keep committed code lean. Not shared.
+**/CODE-NOTES.md
+
 # ────────────────────────────────────────────────────────────────
 # OS cruft
 # ────────────────────────────────────────────────────────────────

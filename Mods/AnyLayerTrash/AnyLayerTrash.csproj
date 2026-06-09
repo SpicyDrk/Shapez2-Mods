@@ -1,26 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!--
-    AnyLayerTrash — placing a vanilla Trash building fills every layer of the
-    tile with trash, and deleting one removes the whole column. Implemented by
-    expanding the player's own ActionModifyBuildings payload (a MonoMod detour on
-    PlayerAction.TryExecute_INTERNAL) so it stays one undoable transaction; the
-    trash placed is plain vanilla trash, so nothing mod-specific is serialized.
-
-    Inherits TargetFramework / LangVersion / Nullable from the workspace
-    Directory.Build.props.
-  -->
+  <!-- AnyLayerTrash mod. Build/packaging rationale: see CODE-NOTES.md.
+       Inherits TargetFramework/LangVersion/Nullable from Directory.Build.props. -->
 
   <PropertyGroup>
     <OutputPath>$(ShapezModOutputRoot)$(MSBuildProjectName)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
-    <!--
-      CS0436: Krafs.Publicizer and MonoMod.Utils both ship their own copy of
-      IgnoresAccessChecksToAttribute (both legitimately need it for cross-asm
-      access). Compiler picks the Publicizer one, which is correct here, but
-      emits a warning per AssemblyInfo line. Harmless.
-    -->
+    <!-- CS0436: duplicate IgnoresAccessChecksToAttribute (Publicizer + MonoMod.Utils);
+         harmless. See CODE-NOTES.md. -->
     <NoWarn>$(NoWarn);CS0436</NoWarn>
   </PropertyGroup>
 
@@ -100,12 +88,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!--
-      MonoMod.RuntimeDetour 25.3.0 matches what Shifter ships. We pin the same
-      version so our compile-time IL targets the runtime types Shifter has
-      already loaded; at game launch the assembly resolver binds to Shifter's
-      copy (the .dll is NOT redeployed alongside our mod — PrivateAssets all).
-    -->
+    <!-- Pinned to match Shifter's shipped version (resolver binds to its copy;
+         not redeployed). See CODE-NOTES.md. -->
     <PackageReference Include="MonoMod.RuntimeDetour" Version="25.3.0">
       <PrivateAssets>all</PrivateAssets>
       <ExcludeAssets>runtime</ExcludeAssets>
@@ -129,18 +113,8 @@
     </None>
   </ItemGroup>
 
-  <!--
-    Steam Workshop publish. Uploads the built mod folder ($(OutputPath)) plus
-    Steam/preview.png as the listing/menu icon, driven by Steam/SteamPublish.sh
-    (which fills Steam/base.vdf). Requires: steamcmd on PATH, a POSIX shell
-    (Git Bash), and the STEAM_USERNAME env var set to your Steam login.
-
-      $env:STEAM_USERNAME = "your_steam_login"
-      dotnet msbuild .\AnyLayerTrash.csproj -t:SteamPublish -v:detailed
-
-    The Steam/ folder is publish tooling only — it is NOT part of the deployed
-    mod (nothing here is copied to $(OutputPath)).
-  -->
+  <!-- Steam Workshop publish (build folder + Steam/preview.png icon). Needs a
+       POSIX shell, steamcmd, and STEAM_USERNAME. See CODE-NOTES.md / memory. -->
   <Target Name="SteamPublish" DependsOnTargets="Build">
     <Exec Command="sh ./Steam/SteamPublish.sh &quot;$([System.IO.Path]::GetFullPath('$(OutputPath)'))&quot;"
           WorkingDirectory="$(MSBuildProjectDirectory)" />

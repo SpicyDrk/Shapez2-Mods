@@ -6,20 +6,10 @@ using ILogger = Core.Logging.ILogger;
 namespace AnyLayerTrash
 {
     /// <summary>
-    /// "Any Layer Trash" — delete shapes on any layer without dragging them down
-    /// to layer 1 first.
-    ///
-    /// <para>Placing a vanilla Trash building automatically fills every layer of
-    /// that tile with trash, and deleting any one removes the whole column. This
-    /// is done by expanding the player's own build action
-    /// (<see cref="TrashActionInterceptor"/>), so it stays a single undoable
-    /// transaction and works with area-drag, blueprints, and platform deletes.
-    /// Only empty layers are filled — layers already occupied by other buildings
-    /// are left alone. The trash placed is plain vanilla trash, so nothing
-    /// mod-specific is written to the save.</para>
-    ///
-    /// <para><see cref="TrashTrioRewirer"/> captures the vanilla trash building ids
-    /// so the interceptor can recognise trash actions.</para>
+    /// "Any Layer Trash" — placing a vanilla Trash fills every (empty) layer of the
+    /// tile; deleting one removes the whole column. <see cref="TrashTrioRewirer"/>
+    /// captures the trash ids; <see cref="TrashActionInterceptor"/> expands the
+    /// player's build action. Design notes: see CODE-NOTES.md.
     /// </summary>
     [UsedImplicitly]
     public class AnyLayerTrashMod : IMod

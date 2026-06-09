@@ -7,12 +7,10 @@ using ILogger = Core.Logging.ILogger;
 namespace AnyLayerTrash
 {
     /// <summary>
-    /// Shared state between <see cref="TrashTrioRewirer"/> (which fills it as the
-    /// game builds its building set) and <see cref="TrashActionInterceptor"/>
-    /// (which reads it at action time). Holds the vanilla trash group id and the
-    /// set of trash variant definition ids, so the interceptor can recognise a
-    /// trash placement/deletion cheaply. ("Trio" = the three layers a trash column
-    /// spans.)
+    /// Shared hand-off: <see cref="TrashTrioRewirer"/> fills the vanilla trash group
+    /// id + variant ids as the game builds its building set;
+    /// <see cref="TrashActionInterceptor"/> reads them to recognise trash actions.
+    /// ("Trio" = the three layers a trash column spans.) See CODE-NOTES.md.
     /// </summary>
     internal sealed class TrashTrioState
     {
@@ -22,10 +20,8 @@ namespace AnyLayerTrash
     }
 
     /// <summary>
-    /// Captures the vanilla trash group id and its variant definition ids into
-    /// <see cref="TrashTrioState"/> every time the game (re)builds its building
-    /// set, so <see cref="TrashActionInterceptor"/> can identify trash actions.
-    /// Pure capture — it returns the building set unchanged.
+    /// Captures the vanilla trash group + variant ids into <see cref="TrashTrioState"/>
+    /// on every building-set (re)build. Pure capture — returns the set unchanged.
     /// </summary>
     internal sealed class TrashTrioRewirer : IBuildingsRewirer
     {
