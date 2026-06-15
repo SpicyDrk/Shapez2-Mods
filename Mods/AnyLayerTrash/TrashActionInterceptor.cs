@@ -28,6 +28,15 @@ namespace AnyLayerTrash
         // MonoMod detours must be static; one back-reference to the live instance.
         private static TrashActionInterceptor? _active;
 
+        // True while an ActionModifyIsland (e.g. a platform-blueprint paste) is
+        // executing. A platform paste places its buildings through a child
+        // ActionModifyBuildings whose IsPossible re-validates the blueprint's
+        // contents — and rejects our stacked (z>0) trash, which is only ever
+        // force-placed, never validation-legal. That failure aborts the whole
+        // paste (buildings deleted, never replaced). While this flag is set we let
+        // a trash-bearing child placement through. See CODE-NOTES.md.
+        private static bool _inIslandAction;
+
         public TrashActionInterceptor(TrashTrioState state, ILogger logger)
         {
             _state = state;
@@ -84,6 +93,23 @@ namespace AnyLayerTrash
             IInteractionMode interactionMode,
             bool skipChecks_INTERNAL)
         {
+            // Mark the island-action scope so the child building placement (run
+            // directly via ExecuteChildAction during this orig) can recognise the
+            // platform-paste context in IsPossibleDetour. See CODE-NOTES.md.
+            if (self is ActionModifyIsland)
+            {
+                bool prev = _inIslandAction;
+                _inIslandAction = true;
+                try
+                {
+                    return orig(self, out reverseAction, interactionMode, skipChecks_INTERNAL);
+                }
+                finally
+                {
+                    _inIslandAction = prev;
+                }
+            }
+
             if (self is ActionModifyBuildings action && _active != null && _active.InvolvesTrash(action))
             {
                 // Validate ONLY a player-initiated action. Skip when already-checked
@@ -103,15 +129,20 @@ namespace AnyLayerTrash
             return orig(self, out reverseAction, interactionMode, skipChecks_INTERNAL);
         }
 
-        // Force TRUE only for an all-forced trash action (a reverse/redo trio) so
-        // the CanUndo/CanRedo gate accepts it. Cheap checks first. See CODE-NOTES.md.
+        // Force TRUE for a trash action in two cases the engine would otherwise
+        // reject: (1) an all-forced reverse/redo trio (opens the CanUndo/CanRedo
+        // input gate); (2) a child placement during a platform-blueprint paste
+        // (_inIslandAction), whose stacked z>0 trash isn't validation-legal — without
+        // this the paste aborts and wipes the platform. Return value ONLY; never
+        // mutates Data, so the per-frame placement preview is untouched. Cheap checks
+        // first. See CODE-NOTES.md.
         private static bool IsPossibleDetour(
             Func<ActionModifyBuildings, IInteractionMode, bool> orig,
             ActionModifyBuildings self,
             IInteractionMode interactionMode)
         {
             bool result = orig(self, interactionMode);
-            if (!result && _active != null && IsAllForced(self.Data) && _active.InvolvesTrash(self))
+            if (!result && _active != null && (IsAllForced(self.Data) || _inIslandAction) && _active.InvolvesTrash(self))
             {
                 return true;
             }
@@ -137,19 +168,30 @@ namespace AnyLayerTrash
             {
                 if (!IsTrashDef(p.Definition)) continue;
                 IslandTileCoordinate pos = p.Transform_I.Position;
+                // A trash sibling may only be force-stamped onto a layer that is a real,
+                // buildable tile on a LIVE island. forceAllowPlace bypasses the engine's
+                // validity gate (CheckPlace), so we replicate it here. Without this, a
+                // platform-blueprint paste force-stamps trash onto VOID tiles of the
+                // freshly-created platform — corrupting the render void-tile cache
+                // (MapPlayingfieldVoidTileTracker) and wiping the whole platform on the
+                // next delete. If the island isn't live yet (e.g. mid-paste, before its
+                // tiles exist) we add nothing and leave the blueprint verbatim — it
+                // already carries whatever trash it captured. See CODE-NOTES.md.
+                if (placeMap == null || !placeMap.TryGetIsland(p.IslandId, out var island))
+                {
+                    continue;
+                }
+                var layoutQuery = new IslandLayoutQuery(island.ToDescriptor(), placeMap.MaxBuildingLayer);
                 for (int layer = 0; layer < LayerCount; layer++)
                 {
                     if (layer == pos.z) continue;
                     if (!placeTiles.Add((p.IslandId, pos.x, pos.y, layer))) continue; // tile already in the action
                     var coordI = new IslandTileCoordinate(pos.x, pos.y, (short)layer);
-                    // Skip layers already occupied (force-placing trash on top throws
-                    // MapCannotCreateBuildingException). See CODE-NOTES.md.
-                    if (placeMap != null
-                        && placeMap.TryGetIsland(p.IslandId, out var occIsland)
-                        && occIsland.TryGetBuilding(in coordI, out _))
-                    {
-                        continue;
-                    }
+                    // Not a real buildable tile on this layer (void / off-platform / notch).
+                    if (!layoutQuery.IsValidAndBuildableTile_I(in coordI)) continue;
+                    // Layer already occupied — force-placing trash on top throws
+                    // MapCannotCreateBuildingException. See CODE-NOTES.md.
+                    if (island.TryGetBuilding(in coordI, out _)) continue;
                     var transformI = new IslandTileTransform(coordI, p.Transform_I.Rotation);
                     expandedPlace ??= new List<PlaceBuildingPayload>(places);
                     expandedPlace.Add(new PlaceBuildingPayload(

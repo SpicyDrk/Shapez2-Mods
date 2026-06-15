@@ -17,6 +17,7 @@ namespace AnyLayerTrash
         private readonly ILogger _logger;
         private readonly RewirerHandle _trioHandle;
         private readonly TrashActionInterceptor _actionInterceptor;
+        private readonly VoidTileTrackerGuard _voidTileGuard;
 
         public AnyLayerTrashMod(ILogger logger)
         {
@@ -32,6 +33,12 @@ namespace AnyLayerTrash
             _actionInterceptor = new TrashActionInterceptor(state, logger);
             _actionInterceptor.Install();
 
+            // Keep the render-only void-tile tracker from throwing (and aborting the
+            // surrounding action) when a stacked trash column is deleted — e.g. on a
+            // platform-blueprint paste. See VoidTileTrackerGuard / CODE-NOTES.md.
+            _voidTileGuard = new VoidTileTrackerGuard(logger);
+            _voidTileGuard.Install();
+
             _logger.Info?.Log(
                 "[AnyLayerTrash] mod loaded — placing trash fills every layer of the tile, " +
                 "deleting any removes the whole column (one undoable action; occupied layers skipped).");
@@ -41,6 +48,7 @@ namespace AnyLayerTrash
         {
             GameRewirers.RemoveRewirer(_trioHandle);
             _actionInterceptor.Dispose();
+            _voidTileGuard.Dispose();
         }
     }
 }
