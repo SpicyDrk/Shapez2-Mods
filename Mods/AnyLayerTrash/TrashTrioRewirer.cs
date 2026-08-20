@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Game.Core.Content.Buildings; // game 1.1: BuildingDefinitionGroupId/Id moved here
 using Game.Core.Coordinates;
 using Game.Core.Rendering.MeshGeneration;
 using ShapezShifter.Hijack;
@@ -35,7 +36,7 @@ namespace AnyLayerTrash
         }
 
         public GameBuildings ModifyGameBuildings(
-            MetaGameModeBuildings metaBuildings,
+            AuthoringBuildings metaBuildings, // game 1.1: was MetaGameModeBuildings
             GameBuildings gameBuildings,
             IMeshCache meshCache,
             VisualThemeBaseResources theme)

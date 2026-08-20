@@ -37,6 +37,31 @@
     with an actionable message before MSBuild tries (and fails) to resolve
     reference assemblies.
   -->
+  <!--
+    Normalize SPZ2_SHIFTER to a DIRECTORY.
+
+    Every mod csproj resolves Shifter as $(SPZ2_SHIFTER)\ShapezShifter.dll, and
+    SmartCutter reaches sideways for $(SPZ2_SHIFTER)\..\3591335975\AssimpNet.dll,
+    so the variable must name Shifter's *folder*, not the DLL itself. The game's
+    set-modding-env-vars launch flag has been seen setting it to the full .dll
+    path, which produces a bogus ...\ShapezShifter.dll\ShapezShifter.dll HintPath and
+    then a cascade of CS0246 errors (ShapezShifter, IRewirer, RewirerHandle,
+    IBuildingsRewirer) that reads exactly like a Shifter API break but is only a
+    bad path.
+
+    A property defined here overrides the environment variable for the whole
+    build, so accepting either form costs one condition and fixes every mod at
+    once. Do NOT "fix" this by editing HintPaths per project.
+
+    Limitation: this only normalizes the ENVIRONMENT variable. A value passed as
+    an MSBuild global property (-p:SPZ2_SHIFTER=...) cannot be overridden from a
+    project file, so the .dll form still fails there. Pass the directory when
+    using -p:.
+  -->
+  <PropertyGroup Condition="'$(SPZ2_SHIFTER)' != '' AND $(SPZ2_SHIFTER.ToLowerInvariant().EndsWith('.dll'))">
+    <SPZ2_SHIFTER>$([System.IO.Path]::GetDirectoryName('$(SPZ2_SHIFTER)'))</SPZ2_SHIFTER>
+  </PropertyGroup>
+
   <PropertyGroup>
     <ShapezPath>$(SPZ2_PATH)</ShapezPath>
     <ShapezPersistent>$(SPZ2_PERSISTENT)</ShapezPersistent>
