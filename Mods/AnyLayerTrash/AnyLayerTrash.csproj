@@ -76,6 +76,21 @@
       <HintPath>$(SPZ2_PATH)\Game.Content.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <!-- Game 1.1 split building-definition types (BuildingDefinitionGroupId,
+         MetaGameModeBuildings, GameBuildings, …) out of SPZGameAssembly into here. -->
+    <Reference Include="Game.Core.Content">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Content.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <!-- Game 1.2 split blueprint types (BlueprintCurrency, reached indirectly via
+         ModifyBuildingsPayload.BlueprintCurrencyModification) out into here.
+         Reference only: the mod passes the value through without naming the type,
+         so no Publicize entry is needed. -->
+    <Reference Include="Game.Core.Blueprint">
+      <HintPath>$(SPZ2_PATH)\Game.Core.Blueprint.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
 
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>$(SPZ2_PATH)\UnityEngine.CoreModule.dll</HintPath>
@@ -101,6 +116,7 @@
     </PackageReference>
 
     <Publicize Include="SPZGameAssembly" />
+    <Publicize Include="Game.Core.Content" />
     <Publicize Include="Game.Core.Map.Model" />
     <Publicize Include="Game.Core.Map.Simulation" />
     <Publicize Include="Game.Content.Features" />
