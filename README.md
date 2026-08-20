@@ -26,6 +26,14 @@ The build locates the game and Shifter via three environment variables:
 | `SPZ2_PERSISTENT` | Shapez 2's persistent-data path (where built mod DLLs land) | `%APPDATA%\..\LocalLow\tobspr Games\shapez 2` |
 | `SPZ2_SHIFTER` | ShapezShifter's directory (containing `ShapezShifter.dll`) | `C:\Program Files (x86)\Steam\steamapps\workshop\content\2162800\3542611357` |
 
+> *`SPZ2_SHIFTER` note:* point it at the **directory**. Some builds of the game's
+> `set-modding-env-vars` flag write the full `ShapezShifter.dll` path instead;
+> `Directory.Build.props` normalizes that form back to its parent directory, so either
+> value works **as an environment variable**. (It cannot rescue a bad value passed as
+> an MSBuild global property — `-p:SPZ2_SHIFTER=…` must name the directory.) If you
+> ever see `MSB3245` followed by a run of `CS0246` errors for `ShapezShifter` /
+> `IRewirer` / `RewirerHandle`, that is a bad path — not a Shifter API break.
+
 ### Easy setup (Windows)
 
 Launch Shapez 2 with the `--set-modding-env-vars` flag (via Steam's "Set Launch Options" or a shortcut) once. The game writes the three variables to your user environment. Restart Rider / Visual Studio afterward so it picks up the new values.
