@@ -4,7 +4,7 @@
 	"publishedfileid" "3740755736"
 	"contentfolder" "${CONTENT_PATH}"
 	"previewfile" "${PREVIEW_IMG}"
-	"visibility" "3"
+	"visibility" "0"
 	"title" "Any Layer Trash"
 	"description" "Updates the trash to accept any layer input.\n\nRequires Shapez Shifter."
 }
